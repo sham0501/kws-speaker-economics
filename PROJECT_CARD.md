@@ -1,7 +1,7 @@
 # PROJECT_CARD.md
 
 **Course:** Data Analytics — Fall 2026
-**Student:** _____________
+**Student:** SeyedHossein AhmadiMousavi — 402100334
 **Route:** D — Google Speech Commands; audio analysis and keyword spotting (KWS)
 **Logged:** 1405/08/13 (phase 1)
 

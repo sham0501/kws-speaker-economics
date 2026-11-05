@@ -135,7 +135,10 @@ def fig_class_distribution(man, order, out):
     ax.set_ylabel("")
     ax.set_title("Class distribution by split (12-class subset)")
     ax.invert_yaxis()
-    ax.legend(title="split", loc="lower right")
+    # Anchored outside the axes: inside, it covered the total labels on the
+    # last few bars.
+    ax.legend(title="split", loc="upper left", bbox_to_anchor=(1.12, 1.0),
+              frameon=False)
     for i, total in enumerate(piv.sum(axis=1)):
         ax.text(total * 1.01, i, f"{int(total):,}", va="center", fontsize=8)
     plt.savefig(out / "fig01_class_distribution.png")
@@ -241,7 +244,7 @@ def fig_rms_by_class(audit, order, out):
         patch.set_alpha(0.75)
     ax.set_ylabel("log₁₀(RMS)")
     ax.set_xlabel("Class")
-    ax.set_title("Signal energy distribution by class — silence should be clearly lower")
+    ax.set_title("Signal energy distribution by class (log scale)")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     plt.savefig(out / "fig05_rms_by_class.png")
     plt.close()

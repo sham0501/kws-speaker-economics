@@ -1,10 +1,11 @@
 # Phase 1 Report — Problem Understanding, Data Understanding, Quality and Exploratory Analysis
 
-**Project:** Data Economics of Keyword Spotting — Smarter Speaker Selection vs. Random Sampling
-**Route:** D — Google Speech Commands, audio analysis and KWS
-**Student:** _____________  **Student ID:** _____________
-**Repository:** https://github.com/<username>/kws-speaker-economics — tag `phase-1`
-**Date:** ____________
+**Project:** Data Economics of Keyword Spotting — Smarter Speaker Selection vs. Random Sampling <br>
+**Route:** D — Google Speech Commands, audio analysis and KWS <br>
+**Student:** SeyedHossein AhmadiMousavi <br>
+**Student ID:** 402100334 <br> 
+**Repository:** https://github.com/sham0501/kws-speaker-economics — tag `phase-1` <br>
+**Date:** 2026/11/05 <br>
 
 ---
 
@@ -241,12 +242,35 @@ val  : running_tap.wav
 test : white_noise.wav
 ```
 
-One consequence worth stating now: the test `silence` class is built entirely from
-`white_noise.wav`, which is spectrally flat and unlike the train noise sources. Test
-performance on `silence` is therefore a measure of generalization to an unfamiliar noise
-type, not of recognizing the same noise seen in training. That is the harder and more
-realistic reading, but it has to be remembered when the phase-3 confusion matrix is
-interpreted.
+### 6.1 The noise files are not interchangeable — and the split makes that matter
+
+Splitting noise at the file level removes leakage, but it has a second consequence that
+only shows up once the clips are measured. The six noise files differ enormously in
+level, and the split distributes them unevenly:
+
+| Source file | Split | Clips | Median RMS |
+|---|---|---|---|
+| `dude_miaowing.wav` | train | 769 | 0.0021 |
+| `exercise_bike.wav` | train | 769 | 0.0218 |
+| `doing_the_dishes.wav` | train | 769 | 0.0331 |
+| `running_tap.wav` | val | 370 | 0.0685 |
+| `pink_noise.wav` | train | 770 | 0.3150 |
+| `white_noise.wav` | **test** | 407 | 0.3329 |
+
+The entire test `silence` class comes from `white_noise.wav` at a median RMS of 0.333.
+Of the four train noise sources, only `pink_noise.wav` is comparable; the other three are
+**10× to 150× quieter**. So roughly three quarters of the training `silence` examples are
+quiet, while 100% of the test `silence` examples are loud broadband noise.
+
+This is the single biggest generalization risk identified in phase 1, and it is a
+property of the split design rather than a data defect. Two things follow for phase 3.
+First, test `silence` performance measures generalization to an unseen *and much louder*
+noise type, so a weak `silence` score should not be read as the model failing at the
+reject task in general. Second, it is now clear why the per-clip energy normalization in
+phase 2 matters: without it, the model could separate train `silence` from speech on
+loudness alone and then collapse at test time, where that shortcut inverts. The phase-3
+confusion matrix should be read with a per-noise-source breakdown rather than a single
+`silence` row.
 
 **Low-energy clips in word classes.** Only **3** files among the 10 keyword classes
 fall below the RMS threshold (`off`: 1, `yes`: 2); the remaining 702 of the 705
@@ -301,21 +325,43 @@ batching needed anywhere in the pipeline.
 
 **Figure:** `figures/phase1/fig05_rms_by_class.png`
 
-Energy is reported on a log₁₀RMS axis, where the keyword classes sit in a broad
-single-peaked band and `silence` sits clearly below them. The spread within the keyword
-classes is wide — it is driven by microphone and speaking-volume variation rather than
-by which word was said — which is why a per-clip energy normalization is applied before
-features in phase 2, with the normalization statistics computed on train only.
+Energy is reported on a log₁₀RMS axis. The ten keyword classes are almost
+indistinguishable from each other: all ten medians fall between 0.055 and 0.065 RMS and
+their boxes overlap nearly completely, so loudness carries essentially no information
+about which word was said. The spread within each keyword class is wide (IQR roughly
+0.034–0.092) and is driven by microphone and speaking-volume variation, which is why a
+per-clip energy normalization is applied before features in phase 2, with the
+normalization statistics computed on train only.
+
+The result that matters here is the one that contradicts the obvious expectation.
+`silence` does **not** sit cleanly below the keywords. Its distribution is far wider than
+any keyword class (IQR 0.020–0.293 against 0.034–0.092) and it overlaps the keywords
+heavily in both directions: **41.4% of `silence` clips are louder than the median keyword
+clip**, and 24.6% of keyword clips are quieter than the median `silence` clip. Energy
+alone therefore cannot separate speech from non-speech in this subset, and the `silence`
+class cannot be treated as "the quiet class." Section 6.1 explains where that width comes
+from.
 
 ### 7.4 Samples-per-speaker distribution
 
 **Figure:** `figures/phase1/fig02_samples_per_speaker.png`
 
-Right-skewed: a dense mass between 8 and 15 samples (p25 = 8, median = 11, p75 = 14 in
-train) and a long thin tail reaching 129. Combined with the Gini of 0.461, the practical
-reading is that the pool offers many speakers with a handful of clips each and very few
-speakers with enough clips to serve a high-k condition — which is exactly the asymmetry
-the phase-3 experiment has to be designed around.
+The distribution is **bimodal**, not a simple right-skewed tail. The main mode sits at
+10–15 clips (757 of 2,031 train speaker ids) with a lower shoulder at 5–10 (530) and
+under 5 (254). A second, clearly separated population sits at 40–55 clips (311 speakers),
+with a thin tail beyond that to a maximum of 129. In total **17.4% of speakers have 40 or
+more clips while 12.5% have fewer than 5** — the pool is effectively two groups of
+contributors, occasional and prolific, rather than one continuous distribution.
+
+Concentration follows from that shape: the top 10% of speakers hold 37.5% of the train
+clips and the top 20% hold 59.9%, which is what the Gini of 0.461 summarizes.
+
+This directly constrains the phase-3 design. A high-k condition (k = 40 or above) can
+only be served by that second population, so it would compare "many speakers" against
+"few speakers *of a specific, unrepresentative kind*" rather than against a clean
+samples-per-speaker contrast. Any k above roughly 15 silently changes which speakers are
+eligible, and the experiment has to either stay below that point or report the
+composition shift explicitly.
 
 ---
 
@@ -325,26 +371,46 @@ the phase-3 experiment has to be designed around.
 
 **Figure:** `fig05_rms_by_class.png`
 
-The separation of interest is `silence` against everything else, and it is clean —
-which is expected, since `silence` is cut from background noise rather than spoken.
-Among the 10 keywords there is no useful energy separation at all; the boxes overlap
-almost completely. Energy alone therefore carries essentially no word information, and
-any classifier that works will be working from spectral structure, not loudness.
+Two readings, and the second is the useful one. Among the 10 keywords there is no energy
+separation at all — the boxes overlap almost completely — so energy carries no word
+information and any classifier that works will be working from spectral structure, not
+loudness. And `silence`, which should have been the one class energy *could* separate,
+is the class energy separates worst: it spans a range wider than all ten keywords
+combined (section 7.3). The practical consequence is that the `silence` class has to be
+learned from spectral shape like every other class; a loudness threshold would both miss
+loud noise and reject quiet speech.
 
 ### 8.2 Spectral content × class
 
-**Figure:** `fig08_mean_logmel_per_class.png`
+**Figure:** `fig08_mean_logmel_per_class.png` (all twelve panels share one color scale,
+so brightness is comparable across classes)
 
-Averaged over all clips of a class, the log-mel patterns do differ visibly between
-words with different vowel and stop structure, but several pairs look close — the
-plosive-initial short words and the words sharing a dominant vowel are the ones to
-watch. This is a testable prediction rather than a conclusion: the pairs that look most
-similar here should be the pairs with the highest off-diagonal mass in the phase-3
-confusion matrix, and the final report can state whether the prediction held.
+`silence` is immediately distinct: flat and bright across every mel band with no
+time structure, which is what a stationary broadband noise source looks like after
+averaging. Part of that brightness is an artifact of averaging rather than a pure class
+property — keyword clips place the word at different offsets, so averaging over a class
+smears the word energy out, while stationary noise averages to itself. The shape
+difference (flat and time-invariant vs. a concentrated time-localized blob) is the real
+signal here, not the absolute brightness.
+
+Among the keywords, the pairs whose averaged patterns look closest are **go / no /
+down** (all three dominated by a low-band blob in the middle third of the clip) and
+**on / off / up** (compact mid-band energy with a shorter duration). This is a testable
+prediction rather than a conclusion: these pairs should carry the highest off-diagonal
+mass in the phase-3 confusion matrix, and the final report can state whether the
+prediction held.
 
 ### 8.3 Audio profile × speaker (groundwork for phase-2 clustering)
 
 **Figure:** `fig09_speaker_mfcc_pca.png`
+
+**How the figure is built, and its one bias.** Each point is one speaker, profiled as the
+mean and standard deviation of 13 MFCC coefficients over 8 of that speaker's clips. The
+figure shows **250 speakers, selected as the 250 with the most clips**, not a random
+sample of the 2,027. That keeps the profiles comparable (every profile is built from the
+same number of clips) but it means the figure describes the prolific second population
+identified in section 7.4, not the pool as a whole. Phase 2 repeats this on a random
+sample before drawing any conclusion about the shape of speaker space.
 
 **Explained variance:** PC1 = 16.7%, PC2 = 11.2% (combined ≈ 27.9%). This is low for a
 2D projection, and it is the most important caveat in this section: roughly 72% of the
@@ -419,19 +485,35 @@ because it needs many small runs rather than one heavy training job.
 
 ## 12. Summary and phase-2 next steps
 
-Phase 1 changed the phase-3 design in two concrete ways. First, the speaker audit showed
-that samples per speaker are capped much lower than assumed: median 11, p75 14, and a
-minimum of 1. The "many samples per speaker" arm of the budget experiment therefore
-cannot be pushed to k = 25 without drawing from a tiny, unrepresentative slice of the
-pool, so the k axis is constrained to the range the data can actually supply and Figure 3
-is what fixes that range. Second, the per-speaker MFCC profile space showed no dominant
-low-dimensional structure (PC1 + PC2 ≈ 27.9%), which weakens the original assumption that
-speakers fall into clean clusters. Phase 2 therefore tests that assumption with silhouette
-score before relying on k-means, and keeps a coverage-based selection strategy as the
-alternative. On the data-quality side the outcome was the opposite of a problem: no
-corrupt files, no missing values, no duplicates, uniform 16 kHz, and all 2,367 flagged
-files resolved as natural recording variation, so no rows were dropped and no quality
-decision needs defending beyond the thresholds themselves.
+Phase 1 changed the design of the later phases in three concrete ways, and each came from
+a measurement that contradicted an assumption rather than confirming one.
+
+First, samples per speaker are **bimodal**, not merely skewed: a main mode at 10–15 clips
+and a separate population at 40–55, with 12.5% of speakers under 5 clips and 17.4% at 40
+or more. The budget experiment cannot push k past roughly 15 without silently switching
+which speakers are eligible, so a high-k arm would no longer be a clean
+samples-per-speaker contrast. The k axis is constrained accordingly, and Figure 3 fixes
+the range.
+
+Second, the `silence` class is not the quiet class. Its energy spread is wider than all
+ten keywords combined, 41.4% of its clips are louder than the median keyword, and the
+cause is structural: the source noise files differ by up to 150× in level, and the split
+puts the loudest one (`white_noise.wav`, median RMS 0.333) alone in test while three of
+the four train sources are far quieter. This is the largest generalization risk found in
+phase 1, it is a consequence of the split design rather than a data defect, and it makes
+the phase-2 per-clip energy normalization load-bearing rather than routine.
+
+Third, the per-speaker MFCC profile space showed no dominant low-dimensional structure
+(PC1 + PC2 ≈ 27.9%), which weakens the original assumption that speakers fall into clean
+clusters — and the figure that showed it was itself built from the 250 most prolific
+speakers, so it does not yet describe the pool. Phase 2 therefore re-runs the projection
+on a random sample and tests cluster structure with silhouette score before relying on
+k-means, keeping a coverage-based selection strategy as the alternative.
+
+On the data-quality side the outcome was the opposite of a problem: no corrupt files, no
+missing values, no duplicates, uniform 16 kHz, and all 2,367 flagged files resolved as
+natural recording variation, so no rows were dropped and no quality decision needs
+defending beyond the thresholds themselves.
 
 **Phase-2 next steps:** a reproducible preprocessing pipeline; log-mel/MFCC feature
 construction with recorded parameters; dimensionality reduction and clustering of
