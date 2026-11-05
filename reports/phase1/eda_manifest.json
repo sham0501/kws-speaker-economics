@@ -1,0 +1,182 @@
+{
+  "n_rows_used": 46254,
+  "class_order": [
+    "yes",
+    "no",
+    "up",
+    "down",
+    "left",
+    "right",
+    "on",
+    "off",
+    "stop",
+    "go",
+    "unknown",
+    "silence"
+  ],
+  "logmel_params": {
+    "examples_per_class": 3,
+    "n_mels": 40,
+    "n_fft": 400,
+    "hop_length": 160,
+    "fmin": 20,
+    "fmax": 7600
+  },
+  "example_files": [
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\yes\\446a3161_nohash_0.wav",
+      "label": "yes"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\yes\\29229c21_nohash_3.wav",
+      "label": "yes"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\yes\\b0ae6326_nohash_1.wav",
+      "label": "yes"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\no\\e0315cf6_nohash_3.wav",
+      "label": "no"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\no\\211b928a_nohash_3.wav",
+      "label": "no"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\no\\a3fc7884_nohash_0.wav",
+      "label": "no"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\up\\b5552931_nohash_2.wav",
+      "label": "up"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\up\\b3bb4dd6_nohash_0.wav",
+      "label": "up"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\up\\42a99aec_nohash_0.wav",
+      "label": "up"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\down\\a16013b7_nohash_3.wav",
+      "label": "down"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\down\\07c5129e_nohash_0.wav",
+      "label": "down"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\down\\e1936ce8_nohash_0.wav",
+      "label": "down"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\left\\e900b652_nohash_0.wav",
+      "label": "left"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\left\\338dacf5_nohash_1.wav",
+      "label": "left"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\left\\3a3ee7ed_nohash_1.wav",
+      "label": "left"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\right\\b76f6088_nohash_1.wav",
+      "label": "right"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\right\\77def3ee_nohash_1.wav",
+      "label": "right"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\right\\3565ca83_nohash_0.wav",
+      "label": "right"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\on\\98ea0818_nohash_5.wav",
+      "label": "on"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\on\\4fce7686_nohash_0.wav",
+      "label": "on"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\on\\ee1d8d49_nohash_2.wav",
+      "label": "on"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\off\\38d78313_nohash_1.wav",
+      "label": "off"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\off\\5f5eef60_nohash_0.wav",
+      "label": "off"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\off\\28460a60_nohash_0.wav",
+      "label": "off"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\stop\\07ad9b59_nohash_0.wav",
+      "label": "stop"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\stop\\499be02e_nohash_4.wav",
+      "label": "stop"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\stop\\ec545975_nohash_0.wav",
+      "label": "stop"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\go\\e102119e_nohash_0.wav",
+      "label": "go"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\go\\ddedba85_nohash_1.wav",
+      "label": "go"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\go\\87c62767_nohash_0.wav",
+      "label": "go"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\cat\\39ec87ac_nohash_0.wav",
+      "label": "unknown"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\eight\\b7a0754f_nohash_1.wav",
+      "label": "unknown"
+    },
+    {
+      "filepath": "data\\raw\\speech_commands_v0.02\\seven\\beb49c22_nohash_2.wav",
+      "label": "unknown"
+    },
+    {
+      "filepath": "data\\raw\\silence_clips\\doing_the_dishes_train_00717.wav",
+      "label": "silence"
+    },
+    {
+      "filepath": "data\\raw\\silence_clips\\exercise_bike_train_00744.wav",
+      "label": "silence"
+    },
+    {
+      "filepath": "data\\raw\\silence_clips\\pink_noise_train_00075.wav",
+      "label": "silence"
+    }
+  ],
+  "figures": [
+    "fig01_class_distribution.png",
+    "fig02_samples_per_speaker.png",
+    "fig03_speakers_vs_budget.png",
+    "fig04_duration_distribution.png",
+    "fig05_rms_by_class.png",
+    "fig06_waveforms.png",
+    "fig07_logmel.png",
+    "fig08_mean_logmel_per_class.png",
+    "fig09_speaker_mfcc_pca.png"
+  ]
+}

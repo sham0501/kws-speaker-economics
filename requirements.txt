@@ -1,0 +1,23 @@
+# Project dependencies — everything runs on CPU, no CUDA required.
+# Reference hardware: Lenovo ThinkPad T14s, 11th-gen Intel Core i5, integrated Iris Xe graphics.
+
+# --- phase 1: data, audit, EDA ---
+numpy>=1.24
+pandas>=2.0
+PyYAML>=6.0
+matplotlib>=3.7
+soundfile>=0.12        # WAV read/write (backed by libsndfile)
+scipy>=1.10             # fallback WAV reading and signal utilities
+
+# --- phase 2 onward: features, clustering, modeling ---
+scikit-learn>=1.3      # PCA, k-means, silhouette, logistic regression, SVM, metrics
+librosa>=0.10           # optional in phase 1 (log-mel is implemented locally), useful in phase 2
+tqdm>=4.65
+
+# --- phase 3: main audio model (small CNN) ---
+# CPU-only build; install with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
+
+# --- notebooks ---
+jupyterlab>=4.0

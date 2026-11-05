@@ -1,0 +1,61 @@
+# ---- raw/heavy data (rebuildable from download_dataset.py; ~2.3 GB archive) ----
+data/raw/
+data/interim/
+data/processed/
+data/cache/
+*.tar.gz
+*.tar.gz.part
+*.zip
+
+# audio files should never be committed, even if accidentally produced elsewhere
+*.wav
+*.flac
+*.mp3
+*.ogg
+
+# exception: the manifest is small and text-based, and must stay in the repo
+# (it's what makes the pipeline reproducible)
+!data/subset_manifest.csv
+
+# ---- model weights and artifacts ----
+models/*
+!models/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+*.npy
+# exception: the compact speaker-profile cache that phase 2 builds on
+!reports/phase1/speaker_profiles_phase1.npz
+
+# ---- python environment ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- notebooks ----
+.ipynb_checkpoints/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ---- scratch ----
+*.log
+tmp/
+scratch/
+
+# helper script for creating the phase-1 commits — not part of the project
+make_phase1_commits.sh
