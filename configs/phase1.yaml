@@ -1,0 +1,67 @@
+# Phase 1 configuration — data-economics-in-KWS project (route D).
+# All seeds and subset parameters live here so the work is reproducible.
+
+seed: 1405
+
+dataset:
+  name: speech_commands_v0.02
+  url: "http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz"
+  # Official SHA256 of the archive. If downloaded from a different mirror,
+  # the actual value is recorded in reports/phase1/download_manifest.json
+  # and compared against this one.
+  sha256: "af14739ee7dc311471de98f5f9d2c9191b18aedfe957f4a6ff791c709868ff58"
+  raw_dir: "data/raw"
+  extract_dirname: "speech_commands_v0.02"
+
+subset:
+  # The 10 classic keywords from TensorFlow's official Simple Audio
+  # Recognition benchmark.
+  # Note: quoting is mandatory. In YAML 1.1, unquoted yes/no/on/off are
+  # parsed as booleans, which silently drops four of these keywords.
+  keywords:
+    - "yes"
+    - "no"
+    - "up"
+    - "down"
+    - "left"
+    - "right"
+    - "on"
+    - "off"
+    - "stop"
+    - "go"
+  unknown_label: "unknown"
+  silence_label: "silence"
+  # Sampling ratio for building the "unknown" class from non-keyword words.
+  # Target: unknown's size should be close to the average size of one
+  # keyword class (not larger), so it doesn't become a dominant class.
+  unknown_target_ratio: 1.0
+  # Number of silence clips cut from _background_noise_, as a ratio of the
+  # average keyword class size.
+  silence_target_ratio: 1.0
+  silence_clip_seconds: 1.0
+
+audio:
+  target_sample_rate: 16000
+  target_duration_seconds: 1.0
+
+audit:
+  # Threshold for flagging a clip as "very short".
+  min_duration_seconds: 0.4
+  # RMS threshold for flagging low-energy / effectively silent clips.
+  low_energy_rms_threshold: 0.005
+  # Clipping threshold: fraction of samples pinned to the max amplitude.
+  clipping_ratio_threshold: 0.001
+
+eda:
+  # Number of examples per class used for waveform/log-mel plots.
+  examples_per_class: 3
+  n_mels: 40
+  n_fft: 400          # 25 ms @ 16 kHz
+  hop_length: 160     # 10 ms @ 16 kHz
+  fmin: 20
+  fmax: 7600
+
+paths:
+  manifest: "data/subset_manifest.csv"
+  figures_dir: "figures/phase1"
+  reports_dir: "reports/phase1"
