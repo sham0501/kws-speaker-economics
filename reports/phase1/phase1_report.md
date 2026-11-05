@@ -534,7 +534,7 @@ python src/eda/run_eda.py
 ```
 
 Seed used: `1405` (recorded in `configs/phase1.yaml`).
-Code version: tag `phase-1`, commit `____________`.
+Code version: tag `phase-1`, commit `bd4fe7f`.
 
 ## Appendix B — generated outputs
 
