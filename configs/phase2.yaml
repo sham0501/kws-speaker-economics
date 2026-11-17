@@ -1,0 +1,80 @@
+# Phase 2 configuration — signal standardization, features, speaker profiles,
+# dimensionality reduction and clustering.
+# Every number that shapes a result lives here, not in the code.
+
+seed: 1405
+
+paths:
+  manifest: "data/subset_manifest.csv"
+  phase1_reports: "reports/phase1"
+  noise_dir: "data/raw/speech_commands_v0.02/_background_noise_"
+  processed_dir: "data/processed/phase2"     # large arrays, not versioned
+  figures_dir: "figures/phase2"
+  reports_dir: "reports/phase2"
+
+labels:
+  keywords: ["yes", "no", "up", "down", "left", "right", "on", "off", "stop", "go"]
+  unknown: "unknown"
+  silence: "silence"
+
+signal:
+  sample_rate: 16000
+  n_samples: 16000          # 1.0 s
+  # Short clips are zero-padded at the end; long clips keep their first
+  # n_samples. Same rule as phase 1 (utils.common.fix_length).
+  level_norm:
+    enabled: true
+    target_rms: 0.05
+    # Cap on the applied gain, so a near-silent clip is not amplified into
+    # pure quantization noise.
+    max_gain_db: 30.0
+
+features:
+  n_fft: 400                # 25 ms window
+  hop_length: 160           # 10 ms hop  -> 98 frames per clip
+  n_mels: 40
+  fmin: 20
+  fmax: 7600
+  n_mfcc: 13
+  log_floor: 1.0e-6
+  delta_width: 2            # frames on each side for the delta regression
+  activity_db: 20.0         # a frame is "active" within this range of the clip's peak frame
+  f0:
+    fmin: 60
+    fmax: 400
+    frame_length: 640       # 40 ms, long enough for two periods at 60 Hz
+    voicing_threshold: 0.45 # minimum normalized autocorrelation peak
+
+augmentation:
+  # Applied to training clips only, on the raw waveform, before level
+  # normalization and feature extraction.
+  time_shift_ms: 100        # uniform in [-100, +100] ms, zero-filled
+  gain_db: 6.0              # uniform in [-6, +6] dB
+  noise_prob: 0.5
+  noise_snr_db: [5.0, 20.0] # uniform; noise drawn from the train-split noise files only
+
+speaker_profiles:
+  split: "train"            # profiles and everything fitted on them use train speakers only
+  min_clips: 8              # speakers with fewer clips are left out of the pool
+  profile_clips: 4          # clips per speaker used to build the profile ("screening" clips)
+  residualize_word: true    # subtract the train mean of the spoken word before averaging
+
+clip_patterns:
+  sample_per_class: 500     # train clips per class for PCA / t-SNE / clip-level k-means
+  tsne_points: 3000
+  tsne_perplexity: 30
+  prolific_speakers: 40     # speakers used for the "word vs speaker" structure check
+  prolific_min_clips: 40
+
+clustering:
+  pca_variance: 0.90        # PCA components kept before clustering
+  k_min: 2
+  k_max: 10
+  n_init: 10
+  null_draws: 20            # Gaussian reference sets for the silhouette baseline
+  stability:
+    n_seeds: 20
+    n_subsamples: 20
+    subsample_frac: 0.8
+    min_seed_ari: 0.80      # a k is eligible only if its seed-stability reaches this
+  reliability_clips: [1, 2, 4, 8]   # profile sizes compared in the split-half check

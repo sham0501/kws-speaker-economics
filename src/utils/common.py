@@ -29,9 +29,10 @@ _FILENAME_RE = re.compile(r"^(?P<speaker>[0-9a-f]+)_nohash_(?P<utt>\d+)\.wav$")
 
 
 def load_config(path: str | os.PathLike | None = None) -> Dict[str, Any]:
-    """Load the YAML config file. Default path: configs/phase1.yaml"""
+    """Load a YAML config file. Default path: configs/phase1.yaml"""
     if path is None:
         path = REPO_ROOT / "configs" / "phase1.yaml"
+    path = resolve(path)
     with open(path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -86,6 +87,15 @@ def relpath_key(label: str, filename: str) -> str:
     Used to match against Google's official split.
     """
     return f"{label}/{Path(filename).name}"
+
+
+def clip_path(filepath: str) -> Path:
+    """
+    Absolute path of a manifest entry.
+    The manifest was written on Windows, so its paths use backslashes;
+    normalizing here keeps every later stage runnable on any OS.
+    """
+    return REPO_ROOT / Path(str(filepath).replace("\\", "/"))
 
 
 def ensure_dir(path: str | os.PathLike) -> Path:
