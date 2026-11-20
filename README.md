@@ -26,7 +26,7 @@ The complete problem statement is recorded in [`PROJECT_CARD.md`](PROJECT_CARD.m
 | Phase | Topic | Status | Tag |
 |---|---|---|---|
 | 1 | Problem framing, data understanding, quality, EDA | done | `phase-1` |
-| 2 | Data prep, feature engineering, speaker clustering | in progress | `phase-2` |
+| 2 | Data prep, feature engineering, speaker clustering | done | `phase-2` |
 | 3 | Predictive modeling and the budget experiment | | `phase-3` |
 | 4 | Interpretability, speaker generalization, noise robustness | | `phase-4` |
 | 5 | Robustness, case study, final version | | `phase-5-final` |
@@ -69,6 +69,7 @@ Step 2 is deterministic for a given seed and only needs to run once; step 3 work
 | 3 | `python src/features/speaker_profiles.py` | clip features | `reports/phase2/speaker_profiles.csv`, `screening_clips.csv`, `screening_budget.json`, `feature_variance_shares.csv`, `speaker_profiles_summary.json`, `figures/phase2/fig02_variance_shares.png` |
 | 4 | `python src/patterns/clip_patterns.py` | clip features | `reports/phase2/clip_structure.json`, `figures/phase2/fig03..fig05` |
 | 5 | `python src/patterns/speaker_clusters.py` | speaker profiles, screening clips, clip features | `reports/phase2/k_selection.csv`, `speaker_clusters.csv`, `clustering_summary.json`, `figures/phase2/fig06..fig09` |
+| 6 | `python src/reports/build_pdf.py reports/phase2/phase2_report.md reports/phase2.pdf` | report and figures | `reports/phase2.pdf` |
 
 Phase-2 stages read the clip features through `src/features/store.py`, which refuses a feature build made from another manifest, with other signal or feature settings, or by an older version of the extraction code.
 
@@ -89,6 +90,7 @@ python tests/test_budget_range.py
 python tests/test_padding_invariance.py
 python tests/test_split_half.py
 python tests/test_feature_builds.py      # needs a full feature build first
+python tests/test_interrupted_build.py   # an interrupted build is refused (runs in a temporary folder)
 ```
 
 Each file also runs under `python -m pytest tests`.
@@ -156,7 +158,7 @@ reports/
 
 | File | Content |
 |---|---|
-| `reports/phase1/phase1_report.md` | phase-1 report (source for the final write-up) |
+| `reports/phase1/phase1_report.md` | phase-1 report, revised in phase 2 (PDF: `reports/phase1.pdf`) |
 | `reports/phase1/download_manifest.json` | data-acquisition record |
 | `reports/phase1/subset_summary.json` | subset stats and leakage verification |
 | `reports/phase1/audit_summary.json` | quality-audit summary |
@@ -183,6 +185,41 @@ reports/
 | `fig08_mean_logmel_per_class` | average spectral pattern per class (silence balanced over its train sources) |
 | `fig09_speaker_mfcc_pca` | speaker audio-profile space, random speakers, word-diverse profiles |
 | `fig10_silence_coverage` | reuse of each background recording in the silence class |
+
+---
+
+## Phase-2 outputs
+
+| File | Content |
+|---|---|
+| `reports/phase2/phase2_report.md` | phase-2 report (PDF: `reports/phase2.pdf`) |
+| `reports/phase2/features_summary.json` | preparation steps and their effect, settings, undefined values |
+| `reports/phase2/feature_catalog.csv` | feature groups, definitions and the reason for each |
+| `reports/phase2/augmentation_settings.json` | augmentation ranges and the gain-invariance check |
+| `reports/phase2/feature_variance_shares.csv` | per feature: variance between words and between speakers |
+| `reports/phase2/speaker_profiles.csv` | one screening profile per candidate speaker |
+| `reports/phase2/screening_clips.csv` | the clips behind each profile |
+| `reports/phase2/screening_budget.json` | screening cost and how it is counted |
+| `reports/phase2/speaker_profiles_summary.json` | pool, profile settings, chance levels of the variance shares |
+| `reports/phase2/clip_structure.json` | clip PCA and what k-means clusters of clips line up with |
+| `reports/phase2/k_selection.csv` | silhouette against a Gaussian reference and stability for k = 2..10 |
+| `reports/phase2/speaker_clusters.csv` | cluster of every candidate |
+| `reports/phase2/clustering_summary.json` | chosen k, cluster descriptions, profile reliability |
+| `figures/phase2/*.png` | 9 figures |
+
+### Figures
+
+| Figure | Content |
+|---|---|
+| `fig01_augmentation_examples` | time shift, gain and added noise on one training clip |
+| `fig02_variance_shares` | what each clip feature varies with: word or speaker |
+| `fig03_clip_pca_variance` | explained variance of the clip vector |
+| `fig04_clip_embedding` | PCA plane and t-SNE of the clips |
+| `fig05_clip_structure` | agreement of clip clusters with word, speaker and noise source |
+| `fig06_k_selection` | silhouette against a no-structure reference, and stability, for each k |
+| `fig07_speaker_clusters` | the two speaker clusters, and the same plane by clips recorded |
+| `fig08_cluster_profiles` | cluster means of the readable descriptors |
+| `fig09_profile_reliability` | split-half reliability of profiles by size, and of 4-clip profiles on the whole pool |
 
 ---
 

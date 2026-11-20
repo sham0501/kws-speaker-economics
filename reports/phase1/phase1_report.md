@@ -4,8 +4,8 @@
 **Route:** D — Google Speech Commands, audio analysis and KWS <br>
 **Student:** SeyedHossein AhmadiMousavi <br>
 **Student ID:** 402100334 <br> 
-**Repository:** https://github.com/sham0501/kws-speaker-economics — tag `phase-1` <br>
-**Date:** 2026/11/05 <br>
+**Repository:** https://github.com/sham0501/kws-speaker-economics — first version at tag `phase-1`, this revision at tag `phase-2` <br>
+**Date:** 2026/11/05, revised 2026/11/20 (see section 13) <br>
 
 ---
 
@@ -165,8 +165,6 @@ Total flagged files: **2,367**. No file was dropped in phase 1; every flag above
 reviewed and resolved as natural recording variation, so the manifest row count stays
 46,254 and class balance is untouched.
 
-**Related figure:** `figures/phase1/fig04_duration_distribution.png`
-
 ---
 
 ## 5. Speaker audit
@@ -193,12 +191,41 @@ coefficient of ~0.45–0.46 across all three splits indicates meaningful but not
 imbalance, and the fact that it is nearly identical in train, val and test means the
 imbalance is a property of how the dataset was collected, not an artifact of the split.
 
-**Related figures:** `figures/phase1/fig02_samples_per_speaker.png` and
-`figures/phase1/fig03_speakers_vs_budget.png`
+![Figure 2. Clips per train speaker and the concentration curve](../../figures/phase1/fig02_samples_per_speaker.png)
 
-Figure 3 makes the design space explicit: for each budget, as the per-speaker sample cap
-(k) rises, the number of speakers that can be covered falls. This curve is what
-determines the practical range of k tested in phase 3.
+![Figure 3. Speakers that can supply a budget, and where exactly k clips per speaker is feasible](../../figures/phase1/fig03_speakers_vs_budget.png)
+
+Figure 3 shows the design space of the budget experiment. The budgets are 5%, 10%, 25%
+and 50% of the 33,846 spoken train clips (1,692, 3,384, 8,461 and 16,923 clips). Both
+panels come from `reports/phase1/budget_speaker_range.csv`.
+
+**Left panel: a range, not a single number.** If no speaker may give more than k clips,
+a budget B can be filled by a range of speaker counts. The solid line is the **fewest**
+speakers that can fill it: take the speakers with the most clips first, each up to k. The
+dashed line is the **most** speakers: one clip from as many speakers as possible, which
+is bounded by B itself and by the 2,027 train speakers and does not depend on k. Raising k
+lowers only the lower bound; it never reduces how many speakers *can* be used. For
+example, at B = 8,461 and k = 8 anything from 1,058 to 2,027 speakers can supply the
+budget, and at k = 32 the lower bound falls to 265.
+
+**Right panel: designs with exactly k clips from every speaker.** The phase-3 contrast
+("many speakers with few clips each" against "few speakers with many clips each") needs
+B / k speakers who each recorded at least k clips. The black line is how many speakers
+did; a dashed line is how many a budget needs. The design is feasible where the black
+line is above the dashed one:
+
+| Budget | k for which an exactly-k design is feasible |
+|---|---|
+| 1,692 (5%) | 1–51 (every k tested) |
+| 3,384 (10%) | 2–51 |
+| 8,461 (25%) | 5–13 and 22–49; **not 14–21** |
+| 16,923 (50%) | none |
+
+The gap at 14–21 for the 25% budget is the bimodal pool of section 7.4 seen from the
+design side: few speakers recorded between 15 and 40 clips, so the black line drops to
+about 400 speakers there and stays flat until about k = 40. Half of the train clips cannot
+be drawn as exactly k clips per speaker for any k. The phase-3 grid therefore uses budgets
+well below 25% of the pool, and states for each cell which speakers were eligible.
 
 ### 5.1 Speaker-leakage verification
 
@@ -279,7 +306,41 @@ behavior — silence clips *should* have low energy. With only 3 affected word-c
 files out of 46,254, this is not a meaningful source of "silence = this word" confusion
 and these 3 files are kept.
 
-**Related figure:** `figures/phase1/fig05_rms_by_class.png`
+### 6.2 Silence clips overlap heavily within each recording
+
+Each silence clip is a one-second window starting at a random sample of its recording.
+Distinct random starts make the windows distinct, but not disjoint: a recording of about
+a minute holds only about 60 non-overlapping seconds, and each train recording supplies
+about 770 clips. `src/data/silence_overlap.py` finds the start sample of every silence
+clip on disk by exact sample match against its recording (all 3,854 clips were located)
+and measures the overlap (`reports/phase1/silence_overlap.json`,
+`reports/phase1/silence_provenance.csv`).
+
+| Recording | Split | Length (s) | Clips | Clip-seconds per covered second | Most clips on one sample |
+|---|---|---|---|---|---|
+| `doing_the_dishes.wav` | train | 95.18 | 769 | 8.09 | 17 |
+| `dude_miaowing.wav` | train | 61.81 | 769 | 12.48 | 23 |
+| `exercise_bike.wav` | train | 61.25 | 769 | 12.56 | 25 |
+| `pink_noise.wav` | train | 60.00 | 770 | 12.86 | 26 |
+| `running_tap.wav` | val | 61.16 | 370 | 6.14 | 14 |
+| `white_noise.wav` | test | 60.00 | 407 | 6.83 | 15 |
+
+Every silence clip overlaps at least one other clip of the same recording, and each
+recording is covered almost entirely (98.5–99.9% of its length). Each train recording is
+reused 8 to 13 times over.
+
+![Figure 10. How often each part of a background recording is reused in the silence class](../../figures/phase1/fig10_silence_coverage.png)
+
+Two consequences. First, the 3,077 train silence clips carry far less independent
+information than their count suggests: 278 seconds of distinct audio (the sum of the
+covered seconds of the four train recordings). A model can fit the class by memorizing these recordings, and a high train
+score on `silence` says little. Second, the test silence class is one 60-second recording
+cut 407 times, so its score is a measurement on one noise type, not on "silence" in
+general, and its uncertainty is much larger than 407 independent clips would imply. The
+split stays leak-free (no recording crosses splits), so neither point biases the test
+score; both limit what it can be generalized to. Phase 3 reports the `silence` row of the
+confusion matrix with this caveat, and the class is excluded from any speaker-level
+analysis.
 
 ---
 
@@ -287,7 +348,7 @@ and these 3 files are kept.
 
 ### 7.1 Class distribution
 
-**Figure:** `figures/phase1/fig01_class_distribution.png`
+![Figure 1. Class distribution by split](../../figures/phase1/fig01_class_distribution.png)
 
 | Class | train | val | test | total |
 |---|---|---|---|---|
@@ -312,7 +373,7 @@ per-class behavior rather than an imbalance artifact.
 
 ### 7.2 File-length distribution
 
-**Figure:** `figures/phase1/fig04_duration_distribution.png`
+![Figure 4. File-length distribution](../../figures/phase1/fig04_duration_distribution.png)
 
 The distribution is a single hard spike at exactly 1.0 s (91.34% of files) with a thin
 left tail (8.66% shorter, down to a floor of 21 files under 0.4 s) and nothing above
@@ -323,7 +384,7 @@ batching needed anywhere in the pipeline.
 
 ### 7.3 Signal-energy distribution
 
-**Figure:** `figures/phase1/fig05_rms_by_class.png`
+![Figure 5. Signal energy by class](../../figures/phase1/fig05_rms_by_class.png)
 
 Energy is reported on a log₁₀RMS axis. The ten keyword classes are almost
 indistinguishable from each other: all ten medians fall between 0.055 and 0.065 RMS and
@@ -344,17 +405,20 @@ from.
 
 ### 7.4 Samples-per-speaker distribution
 
-**Figure:** `figures/phase1/fig02_samples_per_speaker.png`
+Figure 2 (section 5).
 
 The distribution is **bimodal**, not a simple right-skewed tail. The main mode sits at
-10–15 clips (757 of 2,031 train speaker ids) with a lower shoulder at 5–10 (530) and
+10–15 clips (757 of the 2,027 train speakers) with a lower shoulder at 5–10 (530) and
 under 5 (254). A second, clearly separated population sits at 40–55 clips (311 speakers),
-with a thin tail beyond that to a maximum of 129. In total **17.4% of speakers have 40 or
+with a thin tail beyond that to a maximum of 129. In total **17.2% of speakers have 40 or
 more clips while 12.5% have fewer than 5** — the pool is effectively two groups of
 contributors, occasional and prolific, rather than one continuous distribution.
 
-Concentration follows from that shape: the top 10% of speakers hold 37.5% of the train
-clips and the top 20% hold 59.9%, which is what the Gini of 0.461 summarizes.
+Concentration follows from that shape: the top 10% of speakers (203) hold 32.4% of the
+33,846 spoken train clips and the top 20% (406) hold 56.5%, which is what the Gini of
+0.461 summarizes. (The first version of this report gave 37.5%, 59.9% and 17.4%, because
+it counted the four train noise recordings, about 770 silence clips each, as speakers.
+Figure 2 itself never included them.)
 
 This directly constrains the phase-3 design. A high-k condition (k = 40 or above) can
 only be served by that second population, so it would compare "many speakers" against
@@ -369,7 +433,7 @@ composition shift explicitly.
 
 ### 8.1 Signal energy × class
 
-**Figure:** `fig05_rms_by_class.png`
+Figure 5 (section 7.3).
 
 Two readings, and the second is the useful one. Among the 10 keywords there is no energy
 separation at all — the boxes overlap almost completely — so energy carries no word
@@ -382,48 +446,60 @@ loud noise and reject quiet speech.
 
 ### 8.2 Spectral content × class
 
-**Figure:** `fig08_mean_logmel_per_class.png` (all twelve panels share one color scale,
-so brightness is comparable across classes)
+![Figure 6. Example waveforms, three per class](../../figures/phase1/fig06_waveforms.png)
 
-`silence` is immediately distinct: flat and bright across every mel band with no
-time structure, which is what a stationary broadband noise source looks like after
-averaging. Part of that brightness is an artifact of averaging rather than a pure class
-property — keyword clips place the word at different offsets, so averaging over a class
-smears the word energy out, while stationary noise averages to itself. The shape
-difference (flat and time-invariant vs. a concentrated time-localized blob) is the real
-signal here, not the absolute brightness.
+![Figure 7. Log-mel spectrograms of the same examples](../../figures/phase1/fig07_logmel.png)
 
-Among the keywords, the pairs whose averaged patterns look closest are **go / no /
-down** (all three dominated by a low-band blob in the middle third of the clip) and
-**on / off / up** (compact mid-band energy with a shorter duration). This is a testable
-prediction rather than a conclusion: these pairs should carry the highest off-diagonal
-mass in the phase-3 confusion matrix, and the final report can state whether the
-prediction held.
+![Figure 8. Mean log-mel per class](../../figures/phase1/fig08_mean_logmel_per_class.png)
+
+Figure 8 averages the log-mel spectrograms of 60 train clips per class, drawn with the
+project seed. For the ten keywords and `unknown` the 60 clips come from 58–60 different
+speakers; for `silence` they are 15 clips from each of the four train recordings, so no
+single noise type sets the picture (`reports/phase1/eda_manifest.json`, key
+`drawn_samples`). All twelve panels share one color scale.
+
+`silence` is immediately distinct: bright across every mel band with no time structure,
+which is what stationary noise looks like after averaging. Part of that brightness is an
+artifact of averaging rather than a class property — keyword clips place the word at
+different offsets, so averaging smears the word energy out, while stationary noise
+averages to itself. The shape difference (flat and time-invariant against a
+time-localized blob) is the real signal here, not the absolute brightness.
+
+Among the keywords, the closest averaged patterns are **go / no / down** (a broad
+low-band blob in the middle of the clip) and **on / off** (more compact energy reaching
+higher bands); `up` is the most diffuse of the keywords, with no clear blob. This is a
+prediction, not a conclusion: these pairs should carry the largest off-diagonal counts in
+the phase-3 confusion matrix, and the final report states whether they did.
 
 ### 8.3 Audio profile × speaker (groundwork for phase-2 clustering)
 
-**Figure:** `fig09_speaker_mfcc_pca.png`
+![Figure 9. Speaker audio-profile space](../../figures/phase1/fig09_speaker_mfcc_pca.png)
 
-**How the figure is built, and its one bias.** Each point is one speaker, profiled as the
-mean and standard deviation of 13 MFCC coefficients over 8 of that speaker's clips. The
-figure shows **250 speakers, selected as the 250 with the most clips**, not a random
-sample of the 2,027. That keeps the profiles comparable (every profile is built from the
-same number of clips) but it means the figure describes the prolific second population
-identified in section 7.4, not the pool as a whole. Phase 2 repeats this on a random
-sample before drawing any conclusion about the shape of speaker space.
+**How the figure is built.** Each point is one speaker, profiled as the mean and standard
+deviation of 13 MFCC coefficients averaged over 8 of that speaker's clips (26 values,
+standardized before PCA). The 250 speakers are drawn at random from the 1,560 train
+speakers with at least 8 clips, and each speaker's 8 clips are chosen to cover as many
+different words as the speaker recorded: the median profile covers 8 different words, the
+least diverse 3. The drawn speakers recorded a median of 12 clips, close to the pool
+median of 11, so the figure describes the pool and not only its prolific part. Color
+shows how many clips each speaker recorded.
 
-**Explained variance:** PC1 = 16.7%, PC2 = 11.2% (combined ≈ 27.9%). This is low for a
-2D projection, and it is the most important caveat in this section: roughly 72% of the
-variance in per-speaker MFCC profile space is not shown in the figure at all. Whatever
-the 2D scatter looks like, it cannot be read as the shape of speaker space, and a
-clean-looking plot here would not be evidence that speakers fall into discrete groups.
+**Explained variance:** PC1 = 39.3%, PC2 = 15.2% (together 54.6%); PC3 adds only 6.5%
+(`reports/phase1/speaker_profiles_phase1.npz`). The plane therefore shows a little over
+half of the variance, and one direction dominates. The points form one continuous cloud
+with a few isolated speakers at low PC1 or low PC2, not separate groups. The speakers who
+recorded the most clips (green and yellow) sit in the middle of the cloud, between about
+−5 and +1 on PC1, while occasional contributors (purple) also fill both ends of PC1.
 
-This matters directly for phase 2. If the profile space has no dominant low-dimensional
-cluster structure, then k-means on two or three components is the wrong tool for speaker
-selection, and a strategy that maximizes coverage in the full space (for example maximin
-/ farthest-point selection) is a better match for the actual geometry. Phase 2 therefore
-evaluates cluster quality with silhouette score before committing to k-means, and treats
-"no usable cluster structure" as a reportable result rather than a failure.
+Two things follow for phase 2. First, a continuous cloud means that any partition into
+clusters has to be tested against a reference with no structure, not only scored by
+silhouette, because k-means splits a single cloud just as readily. Second, the position
+of a speaker in this space is related to how much the speaker recorded, which is a
+property of the contributor and their setup, not of their voice alone. If phase-2
+clusters follow the same direction, choosing speakers by cluster also changes the mix of
+prolific and occasional contributors, and phase 3 has to separate the two effects.
+Profiles here are built from raw audio and are not corrected for which words were said;
+phase 2 removes both the level and the word from the profile before clustering.
 
 ---
 
@@ -489,26 +565,29 @@ Phase 1 changed the design of the later phases in three concrete ways, and each 
 a measurement that contradicted an assumption rather than confirming one.
 
 First, samples per speaker are **bimodal**, not merely skewed: a main mode at 10–15 clips
-and a separate population at 40–55, with 12.5% of speakers under 5 clips and 17.4% at 40
+and a separate population at 40–55, with 12.5% of speakers under 5 clips and 17.2% at 40
 or more. The budget experiment cannot push k past roughly 15 without silently switching
-which speakers are eligible, so a high-k arm would no longer be a clean
-samples-per-speaker contrast. The k axis is constrained accordingly, and Figure 3 fixes
-the range.
+which speakers are eligible, and for a budget of a quarter of the pool an exactly-k design
+is impossible for k = 14–21 (Figure 3). The k axis and the budgets of phase 3 are
+constrained accordingly.
 
-Second, the `silence` class is not the quiet class. Its energy spread is wider than all
-ten keywords combined, 41.4% of its clips are louder than the median keyword, and the
-cause is structural: the source noise files differ by up to 150× in level, and the split
-puts the loudest one (`white_noise.wav`, median RMS 0.333) alone in test while three of
-the four train sources are far quieter. This is the largest generalization risk found in
-phase 1, it is a consequence of the split design rather than a data defect, and it makes
-the phase-2 per-clip energy normalization load-bearing rather than routine.
+Second, the `silence` class is not the quiet class, and it is much smaller than its clip
+count. Its energy spread is wider than all ten keywords combined, 41.4% of its clips are
+louder than the median keyword, and the source recordings differ by up to 150× in level;
+the split puts the loudest one (`white_noise.wav`, median RMS 0.333) alone in test while
+three of the four train sources are far quieter. The clips also overlap heavily: each
+train recording is reused 8 to 13 times over, and the whole test class is one 60-second
+recording. This is the largest generalization risk found in phase 1. It is a consequence
+of how the class is built rather than a leak, and it makes the phase-2 per-clip level
+normalization load-bearing rather than routine.
 
-Third, the per-speaker MFCC profile space showed no dominant low-dimensional structure
-(PC1 + PC2 ≈ 27.9%), which weakens the original assumption that speakers fall into clean
-clusters — and the figure that showed it was itself built from the 250 most prolific
-speakers, so it does not yet describe the pool. Phase 2 therefore re-runs the projection
-on a random sample and tests cluster structure with silhouette score before relying on
-k-means, keeping a coverage-based selection strategy as the alternative.
+Third, the speaker profiles of a random sample of speakers form one continuous cloud in
+which one direction dominates (PC1 39.3%, PC2 15.2%), and the most prolific contributors
+sit in a narrower part of it than occasional ones. This weakens the original assumption
+that speakers fall into clean groups and raises a confound: a selection rule based on
+profiles may partly select by how much a speaker recorded. Phase 2 therefore tests
+clusters against a structureless reference before relying on them, and reports how the
+clusters relate to clip count.
 
 On the data-quality side the outcome was the opposite of a problem: no corrupt files, no
 missing values, no duplicates, uniform 16 kHz, and all 2,367 flagged files resolved as
@@ -516,9 +595,22 @@ natural recording variation, so no rows were dropped and no quality decision nee
 defending beyond the thresholds themselves.
 
 **Phase-2 next steps:** a reproducible preprocessing pipeline; log-mel/MFCC feature
-construction with recorded parameters; dimensionality reduction and clustering of
-speaker profiles with k chosen via silhouette score; and checking cluster stability
-across seed and subsample variation.
+construction with recorded parameters; speaker profiles that remove the effect of level
+and of the spoken word; dimensionality reduction and clustering of those profiles with k
+chosen against a structureless reference; and checks of cluster stability across seeds,
+subsamples, scaling and method.
+
+---
+
+## 13. Revisions since the first version (tag `phase-1`)
+
+| Section | What changed and why |
+|---|---|
+| 5, Figure 3 | The first version called the lower bound of the speaker range "the number of speakers that can be covered". The figure now shows both bounds, and a second panel shows for which k an exactly-k design is feasible. |
+| 6.2, Figure 10 | The silence clips were described as non-overlapping. Their overlap is now measured. |
+| 7.4, 12 | The concentration figures counted the four train noise recordings as speakers. They are now computed over the 2,027 real speakers. |
+| 8.2, Figure 8 | The figure averaged the first rows of the manifest, so all silence clips came from one recording. It now uses a seeded sample with the silence clips spread evenly over the four train recordings. |
+| 8.3, Figure 9 | The figure used the 250 speakers with the most clips, and their first 8 clips, which covered few words. It now uses 250 random speakers among those with at least 8 clips and word-diverse clips. The explained variance and the reading of the figure changed accordingly. |
 
 ---
 
@@ -529,12 +621,16 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Act
 pip install -r requirements.txt
 python src/data/download_dataset.py
 python src/data/build_subset.py
+python src/data/silence_overlap.py
 python src/data/audit_quality.py
 python src/eda/run_eda.py
+python src/reports/build_pdf.py reports/phase1/phase1_report.md reports/phase1.pdf
 ```
 
-Seed used: `1405` (recorded in `configs/phase1.yaml`).
-Code version: tag `phase-1`, commit `bd4fe7f`.
+Seed used: `1405` (recorded in `configs/phase1.yaml`). `build_subset.py` is
+deterministic for that seed and only needs to run once; `silence_overlap.py` works on the
+subset as it is on disk. Code version: first version at tag `phase-1` (commit `bd4fe7f`);
+this revision at tag `phase-2`.
 
 ## Appendix B — generated outputs
 
@@ -546,5 +642,9 @@ Code version: tag `phase-1`, commit `bd4fe7f`.
 | `reports/phase1/audit_flags.csv` | flagged files only, with reasons |
 | `reports/phase1/audit_per_speaker.csv` | per-speaker sample counts by class |
 | `reports/phase1/audit_summary.json` | numeric audit summary |
-| `reports/phase1/eda_manifest.json` | parameters and figure list |
-| `figures/phase1/fig01..fig09*.png` | the 9 figures |
+| `reports/phase1/silence_provenance.csv` | source recording and start sample of every silence clip |
+| `reports/phase1/silence_overlap.json` | overlap and reuse of each background recording |
+| `reports/phase1/budget_speaker_range.csv` | fewest and most speakers per budget and k, and exactly-k feasibility |
+| `reports/phase1/speaker_profiles_phase1.npz` | the profiles and projection behind Figure 9 |
+| `reports/phase1/eda_manifest.json` | parameters, figure list and the samples drawn for Figures 8 and 9 |
+| `figures/phase1/fig01..fig10*.png` | the 10 figures |
