@@ -57,7 +57,24 @@ speaker_profiles:
   split: "train"            # profiles and everything fitted on them use train speakers only
   min_clips: 8              # speakers with fewer clips are left out of the pool
   profile_clips: 4          # clips per speaker used to build the profile ("screening" clips)
-  residualize_word: true    # subtract the train mean of the spoken word before averaging
+  residualize_word: true    # subtract the mean of the spoken word before averaging
+  # Where those per-word means come from.
+  #   screening : the screening clips of the candidates themselves; this is
+  #               all a collecting team would have before deciding whom to
+  #               record in full (default)
+  #   train     : every spoken train clip; describes an existing archive
+  word_reference: "screening"
+
+screening_budget:
+  # Accounting used to compare profile-based selection with random selection
+  # in phase 3. A selected speaker's screening clips are already recorded, so
+  # they count toward that speaker's training clips instead of being recorded
+  # twice; the screening clips of candidates who are not selected are a cost
+  # with no training value.
+  reuse_in_training: true
+  # Speaker counts and clips per speaker shown in the cost table.
+  example_selected_speakers: [64, 128, 256, 512, 1024]
+  example_clips_per_speaker: [1, 2, 4, 8]
 
 clip_patterns:
   sample_per_class: 500     # train clips per class for PCA / t-SNE / clip-level k-means

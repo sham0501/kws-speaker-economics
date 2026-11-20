@@ -11,18 +11,27 @@ Two things make a naive average of clip features a poor profile:
 * It mixes what was said with who said it. A speaker whose four screening
   clips are "yes, yes, stop, go" would look different from the same speaker
   saying "no, left, off, up". So each clip is first expressed as its
-  deviation from the training-set mean of the word it contains.
+  deviation from the mean of the word it contains. By default that mean is
+  computed from the screening clips of all candidates and nothing else,
+  because the scenario is a decision taken before anyone is recorded in
+  full; config `word_reference: train` switches to the whole training
+  split, which is the right reference for describing an existing archive.
 * It is only as reliable as the number of clips behind it, which is why the
   profile size is a config value and its reliability is measured in
   patterns/speaker_clusters.py rather than assumed.
 
-Only training speakers are profiled, and the word means are computed on
-training clips alone, so nothing downstream of the profiles has seen a
-validation or test recording.
+Only training speakers are profiled and the word means never use a
+validation or test clip, so nothing downstream of the profiles has seen one.
+
+What the screening costs is written to screening_budget.json: candidates,
+clips per candidate, how a screening clip that is later used for training
+is counted, and what the screening of candidates who are not selected
+costs. Phase 3 uses that accounting to compare strategies fairly.
 
 Outputs (reports/phase2/)
     speaker_profiles.csv            one row per pooled speaker
     screening_clips.csv             which clips each profile was built from
+    screening_budget.json           what the screening costs and how it is counted
     feature_variance_shares.csv     per feature: share of variance between words / between speakers
     speaker_profiles_summary.json
     figures/phase2/fig02_variance_shares.png
@@ -43,7 +52,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from features.store import load_features  # noqa: E402
-from utils.common import ensure_dir, load_config  # noqa: E402
+from utils.common import ensure_dir, load_config, resolve  # noqa: E402
 
 
 def profile_matrix(feats: np.ndarray, names: list[str]) -> tuple[np.ndarray, list[str]]:
@@ -63,6 +72,73 @@ def word_residuals(x: np.ndarray, words: pd.Series, fit_mask: np.ndarray) -> np.
     lookup = means.reindex(words.to_numpy()).to_numpy()
     lookup = np.where(np.isnan(lookup), overall, lookup)
     return x - lookup
+
+
+def word_reference_mask(man: pd.DataFrame, cfg: dict, screening_rows=None) -> np.ndarray:
+    """Rows whose per-word means are subtracted from every clip (see config `word_reference`)."""
+    sp = cfg["speaker_profiles"]
+    if sp["word_reference"] == "train":
+        return ((man["split"] == sp["split"]) & (man["label"] != cfg["labels"]["silence"])).to_numpy()
+    if sp["word_reference"] != "screening":
+        raise ValueError(f"unknown word_reference: {sp['word_reference']}")
+    if screening_rows is None:
+        path = resolve(cfg["paths"]["reports_dir"]) / "screening_clips.csv"
+        screening_rows = pd.read_csv(path)["manifest_row"].to_numpy()
+    mask = np.zeros(len(man), dtype=bool)
+    mask[np.asarray(screening_rows, dtype=int)] = True
+    return mask
+
+
+def profile_base(x: np.ndarray, man: pd.DataFrame, cfg: dict, screening_rows=None) -> np.ndarray:
+    """Clip features in the form profiles are averaged from."""
+    if not cfg["speaker_profiles"]["residualize_word"]:
+        return x
+    return word_residuals(x, man["word"], word_reference_mask(man, cfg, screening_rows))
+
+
+def screening_budget(cfg: dict, n_candidates: int, words: pd.Series) -> dict:
+    """Cost of screening, the rule for counting reused clips, and an example table."""
+    s = int(cfg["speaker_profiles"]["profile_clips"])
+    sb = cfg["screening_budget"]
+    reuse = bool(sb["reuse_in_training"])
+    table = []
+    for n in sb["example_selected_speakers"]:
+        if n > n_candidates:
+            continue
+        for k in sb["example_clips_per_speaker"]:
+            reused = n * min(s, k) if reuse else 0
+            table.append(
+                {
+                    "selected_speakers": n,
+                    "clips_per_speaker": k,
+                    "training_clips": n * k,
+                    "screening_clips": n_candidates * s,
+                    "screening_clips_reused_for_training": reused,
+                    "screening_clips_without_training_use": n_candidates * s - reused,
+                    "total_clips_recorded": n_candidates * s + n * k - reused,
+                }
+            )
+    return {
+        "candidates": n_candidates,
+        "screening_clips_per_candidate": s,
+        "screening_clips_total": n_candidates * s,
+        "word_reference": cfg["speaker_profiles"]["word_reference"],
+        "words_in_reference": int(words.nunique()),
+        "reference_clips_per_word": {"min": int(words.value_counts().min()), "median": float(words.value_counts().median())},
+        "reuse_in_training": reuse,
+        "accounting": {
+            "training_budget_view": (
+                "every strategy trains on the same number of clips; screening is free. "
+                "Measures the value of choosing speakers, as if profiles came from an existing archive."
+            ),
+            "recording_budget_view": (
+                "every recorded clip counts. Random selection needs no screening; a profile-based "
+                "strategy pays candidates x screening clips first, and a selected speaker's screening "
+                "clips count toward their training clips. Strategies are compared at equal total recording cost."
+            ),
+        },
+        "cost_table": table,
+    }
 
 
 def variance_share(x: np.ndarray, groups: np.ndarray) -> np.ndarray:
@@ -123,9 +199,10 @@ def main() -> int:
     shares.to_csv(rep_dir / "feature_variance_shares.csv", index=False)
 
     # ---- profiles from a fixed number of screening clips
-    base = resid if sp["residualize_word"] else x
     rows_by_speaker = {s: np.flatnonzero(in_pool & (man["speaker_id"] == s).to_numpy()) for s in pool}
     picked = sample_rows(rows_by_speaker, sp["profile_clips"], rng)
+    screening_rows = np.concatenate(list(picked.values()))
+    base = profile_base(x, man, cfg, screening_rows)
     prof = build_profiles(base, picked)
     prof.columns = cols
     undefined = prof.isna().sum()
@@ -143,6 +220,8 @@ def main() -> int:
         columns=["speaker_id", "manifest_row", "filepath"],
     )
     screening.to_csv(rep_dir / "screening_clips.csv", index=False)
+    budget = screening_budget(cfg, len(pool), man["word"].iloc[screening_rows])
+    (rep_dir / "screening_budget.json").write_text(json.dumps(budget, indent=2), encoding="utf-8")
 
     summary = {
         "split": sp["split"],
@@ -154,6 +233,7 @@ def main() -> int:
         "profile_clips": sp["profile_clips"],
         "screening_clips_total": int(len(screening)),
         "residualize_word": sp["residualize_word"],
+        "word_reference": sp["word_reference"],
         "profile_features": cols,
         "profiles_with_undefined_value": {k: int(v) for k, v in undefined.items() if v},
         # With g groups and n clips, a feature unrelated to the grouping

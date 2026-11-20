@@ -41,22 +41,29 @@ def load_clip(path, sample_rate: int, n_samples: int) -> tuple[np.ndarray, int]:
     return fix_length(sig, n_samples), int(sig.shape[0])
 
 
-def normalize_level(x: np.ndarray, target_rms: float, max_gain_db: float) -> tuple[np.ndarray, float]:
+def normalize_level(
+    x: np.ndarray, target_rms: float, max_gain_db: float, n_valid: int | None = None
+) -> tuple[np.ndarray, float]:
     """
     Scale `x` to `target_rms`, never applying more than `max_gain_db` of gain.
-    Returns (scaled signal, applied gain in dB). An all-zero clip is returned
-    unchanged with a gain of 0 dB.
+    The level is measured on the first `n_valid` samples (the recording
+    without its zero padding), so padding a clip does not make it louder.
+    Returns (scaled signal, applied gain in dB). A silent recording is
+    returned unchanged with a gain of 0 dB.
     """
-    level = rms(x)
+    level = rms(x[:n_valid] if n_valid is not None else x)
     if level <= 0.0:
-        return x, 0.0
+        return x.astype(np.float32), 0.0
     gain = min(target_rms / level, 10.0 ** (max_gain_db / 20.0))
     return (x * gain).astype(np.float32), float(20.0 * np.log10(gain))
 
 
-def standardize(x: np.ndarray, cfg: dict) -> tuple[np.ndarray, float]:
-    """Apply the level rule from the config to an already length-fixed clip."""
+def standardize(x: np.ndarray, cfg: dict, n_valid: int | None = None) -> tuple[np.ndarray, float]:
+    """
+    Apply the level rule from the config to an already length-fixed clip.
+    `n_valid` is the clip's length before padding; None means no padding.
+    """
     ln = cfg["signal"]["level_norm"]
     if not ln["enabled"]:
         return x.astype(np.float32), 0.0
-    return normalize_level(x, ln["target_rms"], ln["max_gain_db"])
+    return normalize_level(x, ln["target_rms"], ln["max_gain_db"], n_valid)

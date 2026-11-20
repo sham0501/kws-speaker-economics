@@ -5,7 +5,7 @@ Phase-1 exploratory data analysis (EDA).
 Figures produced (all under figures/phase1/):
   fig01_class_distribution.png        — class distribution by split (univariate)
   fig02_samples_per_speaker.png       — histogram + cumulative curve of samples/speaker
-  fig03_speakers_vs_budget.png        — "budget vs. speaker count" curve (ties directly to the main question)
+  fig03_speakers_vs_budget.png        — fewest / most speakers that can supply a budget, and which k are feasible
   fig04_duration_distribution.png     — file-length distribution
   fig05_rms_by_class.png              — energy (RMS) distribution by class (multivariate)
   fig06_waveforms.png                 — time-domain waveform for a few examples per class
@@ -16,9 +16,14 @@ Figures produced (all under figures/phase1/):
 All text rendered *inside* these figures (titles, axis labels, legends)
 is in English, same as the rest of the codebase and the report.
 
+Figures 8 and 9 and the example clips are drawn with the configured seed,
+so they do not depend on the row order of the manifest. What was actually
+drawn (clip counts, noise sources, words per speaker profile) is written to
+reports/phase1/eda_manifest.json.
+
 Usage:
     python src/eda/run_eda.py
-    python src/eda/run_eda.py --max-files-per-class 300   # faster on a laptop
+    python src/eda/run_eda.py --max-files-per-class 300   # smoke test, written to */phase1/limited/
 """
 
 from __future__ import annotations
@@ -37,7 +42,7 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from utils.common import (  # noqa: E402
-    REPO_ROOT,
+    clip_path,
     ensure_dir,
     fix_length,
     load_config,
@@ -173,36 +178,80 @@ def fig_samples_per_speaker(man, out):
     return counts
 
 
-def fig_speakers_vs_budget(counts, out):
+def speaker_range(capacities, k: int, budget: int):
     """
-    The figure most directly tied to the research question: with a fixed
-    budget of B clips, how many speakers can be covered if we take at
-    most k samples from each?
+    Fewest and most speakers that can together supply exactly `budget`
+    clips when each contributes at least one clip, at most `k`, and never
+    more than they recorded. Returns None if the budget cannot be met.
+
+    fewest: take the speakers with the largest capped capacity first.
+    most:   one clip each from as many speakers as possible, the rest from
+            speakers with spare capacity; bounded by the budget itself and
+            by the number of speakers.
     """
-    fig, ax = plt.subplots(figsize=(7, 4.3))
+    cap = np.minimum(np.asarray(capacities, dtype=np.int64), int(k))
+    cap = cap[cap > 0]
+    if cap.sum() < budget:
+        return None
+    cum = np.cumsum(np.sort(cap)[::-1])
+    fewest = int(np.searchsorted(cum, budget) + 1)
+    most = int(min(budget, len(cap)))
+    return fewest, most
+
+
+def fig_speakers_vs_budget(counts, out, rep):
+    """
+    Two views of the budget question, both from the train clip counts.
+
+    Left: with at most k clips per speaker, the fewest speakers that can
+    supply a budget of B clips (solid) and the most (dashed). k only limits
+    the fewest; the most is fixed by B and by the number of speakers.
+
+    Right: the phase-3 design takes exactly k clips from each speaker, so
+    it needs B / k speakers who recorded at least k clips. The design is
+    feasible where the solid curve (speakers available) is above the dashed
+    line of the budget (speakers required).
+    """
     arr = counts.to_numpy()
     total = int(arr.sum())
     # Budgets are chosen as a fraction of the available data so this
-    # figure stays meaningful on any dataset size (small subset or full
-    # dataset).
+    # figure stays meaningful on any dataset size.
     budgets = sorted({max(int(total * f), 10) for f in (0.05, 0.10, 0.25, 0.50)})
     k_max = int(min(max(np.percentile(arr, 95), 5), arr.max()))
     ks = np.arange(1, k_max + 1)
-    for B in budgets:
-        n_spk = []
-        for k in ks:
-            per = np.minimum(arr, k)          # at most k samples per speaker
-            avail = np.sort(per)[::-1]
-            cum = np.cumsum(avail)
-            n_spk.append(int(np.searchsorted(cum, B) + 1) if cum[-1] >= B else np.nan)
-        ax.plot(ks, n_spk, marker="o", ms=3,
-                label=f"budget = {B:,} clips ({100 * B / total:.0f}% of train)")
-    ax.set_xlabel("Max samples per speaker (k)")
-    ax.set_ylabel("Speakers that can be covered")
-    ax.set_title("Speaker count vs. samples-per-speaker trade-off at a fixed budget")
-    ax.legend()
+
+    fig, (a, b) = plt.subplots(1, 2, figsize=(12, 4.4))
+    rows = []
+    for i, B in enumerate(budgets):
+        color = plt.get_cmap("tab10")(i)
+        rng_k = [speaker_range(arr, k, B) for k in ks]
+        lo = [r[0] if r else np.nan for r in rng_k]
+        hi = [r[1] if r else np.nan for r in rng_k]
+        a.plot(ks, lo, marker="o", ms=3, color=color, label=f"B = {B:,} clips ({100 * B / total:.0f}% of train)")
+        a.plot(ks, hi, ls="--", color=color, lw=1)
+        a.fill_between(ks, lo, hi, color=color, alpha=0.08)
+        b.plot(ks, B / ks, ls="--", color=color, lw=1.2, label=f"required: {B:,} / k")
+        for k, r in zip(ks, rng_k):
+            rows.append({"budget": B, "k": int(k), "fewest_speakers": r[0] if r else None,
+                         "most_speakers": r[1] if r else None,
+                         "speakers_with_at_least_k": int((arr >= k).sum()),
+                         "exact_k_feasible": bool((arr >= k).sum() >= B / k)})
+    a.set_xlabel("Max clips per speaker (k)")
+    a.set_ylabel("Number of speakers")
+    a.set_yscale("log")
+    a.set_title("Speakers that can supply budget B\n(solid: fewest possible, dashed: most possible)")
+    a.legend(fontsize=7, frameon=False)
+    b.plot(ks, [(arr >= k).sum() for k in ks], color="k", lw=2, label="available: speakers with >= k clips")
+    b.set_yscale("log")
+    b.set_xlabel("Clips taken from every selected speaker (k)")
+    b.set_ylabel("Number of speakers")
+    b.set_title("Exactly k clips per speaker: required vs available")
+    b.legend(fontsize=7, frameon=False)
     plt.savefig(out / "fig03_speakers_vs_budget.png")
     plt.close()
+    table = pd.DataFrame(rows)
+    table[["fewest_speakers", "most_speakers"]] = table[["fewest_speakers", "most_speakers"]].astype("Int64")
+    table.to_csv(rep / "budget_speaker_range.csv", index=False)
 
 
 def fig_duration(audit, out):
@@ -274,7 +323,7 @@ def fig_waveforms_and_logmel(examples, order, cfg, out):
     for lab in labs:
         items = []
         for _, r in examples[examples["label"] == lab].head(n_per).iterrows():
-            p = REPO_ROOT / r["filepath"]
+            p = clip_path(r["filepath"])
             if not p.exists():
                 continue
             sig, s = read_wav(p)
@@ -320,28 +369,50 @@ def fig_waveforms_and_logmel(examples, order, cfg, out):
     return cache
 
 
-def fig_mean_logmel(cache, cfg, man, out):
-    """Mean log-mel per class over a larger sample — shows the spectral difference between words."""
+def sample_for_mean_logmel(man, lab, n, seed, silence_label):
+    """
+    Up to `n` train clips of class `lab`, drawn with `seed`. Silence clips
+    are spread evenly over the background recordings they were cut from, so
+    the class mean is not the mean of whichever source sorts first.
+    """
+    sub = man[(man["label"] == lab) & (man["split"] == "train")]
+    if lab != silence_label:
+        return sub.sample(n=min(n, len(sub)), random_state=seed)
+    sources = sorted(sub["speaker_id"].unique())
+    share = [n // len(sources) + (1 if i < n % len(sources) else 0) for i in range(len(sources))]
+    parts = [sub[sub["speaker_id"] == src].sample(n=min(k, (sub["speaker_id"] == src).sum()), random_state=seed)
+             for src, k in zip(sources, share)]
+    return pd.concat(parts)
+
+
+def fig_mean_logmel(cache, cfg, man, out, drawn):
+    """Mean log-mel per class over a seeded sample — shows the spectral difference between words."""
     if not cache:
         return
     sr = cfg["audio"]["target_sample_rate"]
     tlen = int(cfg["audio"]["target_duration_seconds"] * sr)
     order = class_order(cfg)
     labs = [l for l in order if l in set(man["label"])]
+    n_per_class = int(cfg["eda"]["mean_logmel_clips_per_class"])
+    silence_label = cfg["subset"]["silence_label"]
     means = {}
     for lab in labs:
-        sub = man[(man["label"] == lab) & (man["split"] == "train")].head(60)
-        acc, n = None, 0
+        sub = sample_for_mean_logmel(man, lab, n_per_class, cfg["seed"], silence_label)
+        acc, n, used = None, 0, []
         for _, r in sub.iterrows():
-            p = REPO_ROOT / r["filepath"]
+            p = clip_path(r["filepath"])
             if not p.exists():
                 continue
             sig, s = read_wav(p)
             lm = log_mel(fix_length(sig, tlen), s, cfg)
             acc = lm if acc is None else acc + lm
             n += 1
+            used.append(r["speaker_id"])
         if n:
             means[lab] = acc / n
+            drawn["fig08_mean_logmel"][lab] = {"clips": n, "speakers_or_sources": int(len(set(used)))}
+            if lab == silence_label:
+                drawn["fig08_mean_logmel"][lab]["clips_by_source"] = pd.Series(used).value_counts().sort_index().to_dict()
     if not means:
         return
     cols = 4
@@ -363,25 +434,39 @@ def fig_mean_logmel(cache, cfg, man, out):
     plt.close()
 
 
-def fig_speaker_pca(man, cfg, out, max_speakers=250, clips_per_speaker=8):
+def word_diverse(clips: pd.DataFrame, k: int, seed: int) -> pd.DataFrame:
+    """
+    k clips of one speaker covering as many different words as possible:
+    one clip of each word in random order, then a second of each, and so on.
+    """
+    shuffled = clips.sample(frac=1.0, random_state=seed)
+    rank = shuffled.groupby("word").cumcount()
+    return shuffled.assign(_rank=rank.to_numpy()).sort_values("_rank", kind="stable").head(k).drop(columns="_rank")
+
+
+def fig_speaker_pca(man, cfg, out, rep, drawn):
     """
     Per-speaker MFCC profile -> 2D PCA.
-    This figure is direct groundwork for phase-2 speaker clustering; in
-    phase 1 it's only used to check whether any visible structure exists
-    across speakers.
+    Speakers are drawn at random among those with enough train clips, and
+    each profile uses clips of as many different words as the speaker has,
+    so the profile describes the voice more than one particular word.
     """
+    sp = cfg["eda"]["speaker_pca"]
+    max_speakers, clips_per_speaker = int(sp["max_speakers"]), int(sp["clips_per_speaker"])
+    rng = np.random.default_rng(cfg["seed"])
     sr = cfg["audio"]["target_sample_rate"]
     tlen = int(cfg["audio"]["target_duration_seconds"] * sr)
     w = man[(man["split"] == "train") & (~man["speaker_id"].astype(str).str.startswith("noise::"))]
-    spk_counts = w.groupby("speaker_id").size().sort_values(ascending=False)
-    speakers = spk_counts.head(max_speakers).index.tolist()
+    spk_counts = w.groupby("speaker_id").size()
+    eligible = np.sort(spk_counts.index[spk_counts >= clips_per_speaker].to_numpy())
+    speakers = rng.choice(eligible, size=min(max_speakers, len(eligible)), replace=False)
 
-    vecs, names, nclips = [], [], []
+    vecs, names, nclips, n_words = [], [], [], []
     for i, spk in enumerate(speakers, 1):
-        sub = w[w["speaker_id"] == spk].head(clips_per_speaker)
+        sub = word_diverse(w[w["speaker_id"] == spk], clips_per_speaker, int(rng.integers(1 << 31)))
         feats = []
         for _, r in sub.iterrows():
-            p = REPO_ROOT / r["filepath"]
+            p = clip_path(r["filepath"])
             if not p.exists():
                 continue
             sig, s = read_wav(p)
@@ -391,9 +476,18 @@ def fig_speaker_pca(man, cfg, out, max_speakers=250, clips_per_speaker=8):
         if feats:
             vecs.append(np.mean(feats, axis=0))
             names.append(spk)
-            nclips.append(len(sub))
+            nclips.append(int(spk_counts[spk]))
+            n_words.append(int(sub["word"].nunique()))
         if i % 25 == 0:
             print(f"\r[eda] speaker profile {i}/{len(speakers)}", end="", flush=True)
+    dw = pd.Series(n_words, dtype=float)
+    drawn["fig09_speaker_pca"] = {
+        "speakers_eligible": int(len(eligible)),
+        "speakers_drawn": int(len(names)),
+        "clips_per_profile": clips_per_speaker,
+        "distinct_words_per_profile": {"min": float(dw.min()), "median": float(dw.median()), "max": float(dw.max())} if len(dw) else {},
+        "clips_recorded_by_drawn_speakers": {"median": float(np.median(nclips)) if nclips else None},
+    }
     print()
     if len(vecs) < 5:
         return
@@ -405,24 +499,25 @@ def fig_speaker_pca(man, cfg, out, max_speakers=250, clips_per_speaker=8):
     var = (S**2) / (S**2).sum()
 
     fig, ax = plt.subplots(figsize=(6.5, 5.2))
-    sc = ax.scatter(Z[:, 0], Z[:, 1], c=nclips, cmap="viridis", s=26, alpha=0.85,
+    sc = ax.scatter(Z[:, 0], Z[:, 1], c=np.log10(nclips), cmap="viridis", s=26, alpha=0.85,
                     edgecolor="white", linewidth=0.4)
-    plt.colorbar(sc, ax=ax, label="Clips used to build the profile")
+    plt.colorbar(sc, ax=ax, label="log10(clips the speaker recorded)")
     ax.set_xlabel(f"PC1 ({100 * var[0]:.1f}% variance)")
     ax.set_ylabel(f"PC2 ({100 * var[1]:.1f}% variance)")
     ax.set_title(
-        f"Speaker audio-profile space ({len(names)} train speakers)\n"
+        f"Speaker audio-profile space ({len(names)} random train speakers, {clips_per_speaker} clips each)\n"
         "Feature: mean and std of 13 MFCC coefficients"
     )
     plt.savefig(out / "fig09_speaker_mfcc_pca.png")
     plt.close()
 
     np.savez(
-        ensure_dir(cfg["paths"]["reports_dir"]) / "speaker_profiles_phase1.npz",
+        rep / "speaker_profiles_phase1.npz",
         speakers=np.array(names),
         features=X,
         pca2=Z,
         explained_variance_ratio=var[:10],
+        distinct_words=np.array(n_words),
     )
 
 
@@ -435,8 +530,11 @@ def main() -> int:
 
     cfg = load_config(args.config)
     set_seed(cfg["seed"])
-    out = ensure_dir(cfg["paths"]["figures_dir"])
-    rep = resolve(cfg["paths"]["reports_dir"])
+    # A limited run is a smoke test and writes next to, never over, the full outputs.
+    sub_dir = "limited" if args.max_files_per_class else ""
+    out = ensure_dir(resolve(cfg["paths"]["figures_dir"]) / sub_dir)
+    rep_full = resolve(cfg["paths"]["reports_dir"])
+    rep = ensure_dir(rep_full / sub_dir)
 
     man_path = resolve(cfg["paths"]["manifest"])
     if not man_path.exists():
@@ -445,22 +543,25 @@ def main() -> int:
         return 1
     man = pd.read_csv(man_path)
     if args.max_files_per_class:
-        man = man.groupby(["label", "split"], group_keys=False).head(args.max_files_per_class)
+        # seeded shuffle, then the first N per class and split: a random sample
+        # that does not depend on the order of the manifest
+        man = man.sample(frac=1.0, random_state=cfg["seed"]).groupby(["label", "split"]).head(args.max_files_per_class)
 
-    audit_path = rep / "audit_per_file.csv"
+    audit_path = rep_full / "audit_per_file.csv"
     audit = pd.read_csv(audit_path) if audit_path.exists() else None
     if audit is None:
         print("[warn] audit_per_file.csv not found; figures 4 and 5 will be skipped. "
               "Run audit_quality.py first to generate it.")
 
     order = class_order(cfg)
+    drawn = {"fig08_mean_logmel": {}}
 
     print("[eda] 1/7 class distribution ...")
     fig_class_distribution(man, order, out)
     print("[eda] 2/7 samples per speaker ...")
     counts = fig_samples_per_speaker(man, out)
     print("[eda] 3/7 budget/speaker trade-off ...")
-    fig_speakers_vs_budget(counts, out)
+    fig_speakers_vs_budget(counts, out, rep)
     print("[eda] 4/7 duration distribution ...")
     fig_duration(audit, out)
     print("[eda] 5/7 energy by class ...")
@@ -468,19 +569,20 @@ def main() -> int:
     print("[eda] 6/7 waveform and log-mel ...")
     ex = pick_examples(man, order, cfg["eda"]["examples_per_class"], cfg["seed"])
     cache = fig_waveforms_and_logmel(ex, order, cfg, out)
-    fig_mean_logmel(cache, cfg, man, out)
+    fig_mean_logmel(cache, cfg, man, out, drawn)
     if not args.skip_speaker_pca:
         print("[eda] 7/7 speaker-profile PCA ...")
-        fig_speaker_pca(man, cfg, out)
+        fig_speaker_pca(man, cfg, out, rep, drawn)
 
     meta = {
         "n_rows_used": int(len(man)),
         "class_order": order,
         "logmel_params": cfg["eda"],
         "example_files": ex[["filepath", "label"]].to_dict(orient="records"),
+        "drawn_samples": drawn,
         "figures": sorted(p.name for p in out.glob("*.png")),
     }
-    (ensure_dir(cfg["paths"]["reports_dir"]) / "eda_manifest.json").write_text(
+    (rep / "eda_manifest.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print(f"\n[done] {len(meta['figures'])} figures in {out}")

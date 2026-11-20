@@ -32,6 +32,24 @@ dataset:
    SOTA model), a smaller and CPU-runnable volume is essential — the experiment needs
    many repeated runs rather than one heavy training job.
 
+**Why route D rather than the other three routes.** The research question is about a
+data-collection decision: whether a fixed budget is better spent on more contributors or
+on more records per contributor. It can be tested only on data that (a) records who
+produced each observation, (b) has many contributors with several observations each, and
+(c) can be split so that no contributor is on both sides of the evaluation.
+
+- *Route A (NYC TLC trip records)* is structured trip and time-series data. Its natural
+  questions are about demand, fares and anomalies over time; it has no contributor whose
+  share of the data a collecting team chooses, so the question does not arise there.
+- *Route B (Amazon Reviews'23)* and *route C (iNaturalist)* do have contributors
+  (reviewers, observers), so a similar question could be posed. Two practical differences
+  favour route D. Speech Commands encodes the speaker in every file name and its official
+  validation and test lists are already speaker-disjoint, so the question can be tested
+  against an established split instead of a newly designed one. And one-second clips with
+  a small convolutional model train in minutes on the reference CPU, which matters because
+  the budget experiment trains hundreds of models; images or review text at a comparable
+  scale would need considerably more computation per model.
+
 ---
 
 ## 2. Working title

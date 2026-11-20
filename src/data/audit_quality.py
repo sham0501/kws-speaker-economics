@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from utils.common import REPO_ROOT, ensure_dir, load_config, resolve, set_seed  # noqa: E402
+from utils.common import clip_path, ensure_dir, load_config, resolve, set_seed  # noqa: E402
 
 
 def probe(path: Path) -> dict:
@@ -86,7 +86,7 @@ def probe(path: Path) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Audio quality audit and speaker audit")
     ap.add_argument("--config", default=None)
-    ap.add_argument("--limit", type=int, default=0, help="only N random files (0 = all)")
+    ap.add_argument("--limit", type=int, default=0, help="only N random files (0 = all); written to reports/phase1/limited/")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -121,7 +121,7 @@ def main() -> int:
 
     recs = []
     for i, (_, row) in enumerate(work.iterrows(), 1):
-        p = REPO_ROOT / row["filepath"]
+        p = clip_path(row["filepath"])
         if not p.exists():
             rec = {"corrupt": True, "error": "FileNotFound", "sample_rate": np.nan}
         else:
@@ -205,7 +205,9 @@ def main() -> int:
     }
 
     # ---------- 5) write output ----------
-    rep = ensure_dir(cfg["paths"]["reports_dir"])
+    # A limited run is a smoke test; it must never overwrite the full audit
+    # that the report and later phases read.
+    rep = ensure_dir(resolve(cfg["paths"]["reports_dir"]) / "limited" if args.limit else cfg["paths"]["reports_dir"])
     df.to_csv(rep / "audit_per_file.csv", index=False)
     flagged = df[df["n_flags"] > 0].sort_values("n_flags", ascending=False)
     flagged.to_csv(rep / "audit_flags.csv", index=False)

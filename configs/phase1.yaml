@@ -60,6 +60,14 @@ eda:
   hop_length: 160     # 10 ms @ 16 kHz
   fmin: 20
   fmax: 7600
+  # Figure 8: train clips per class averaged into the mean log-mel. Silence
+  # clips are spread evenly over the train background recordings.
+  mean_logmel_clips_per_class: 60
+  # Figure 9: speakers drawn at random among those with at least
+  # clips_per_speaker train clips; each profile covers as many words as possible.
+  speaker_pca:
+    max_speakers: 250
+    clips_per_speaker: 8
 
 paths:
   manifest: "data/subset_manifest.csv"

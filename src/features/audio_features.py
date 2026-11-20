@@ -19,6 +19,13 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 EPS = 1e-10
 
+# Version of the extraction code. It is stored with every feature build and
+# checked when features are loaded, so arrays computed by an older version
+# of this file are refused instead of being read silently.
+#   1  first version
+#   2  clip statistics and level normalization use only the recording, not its padding
+EXTRACTOR_VERSION = 2
+
 
 # ------------------------------------------------------------------ mel
 def _hz_to_mel(f):
@@ -218,36 +225,55 @@ class FeatureExtractor:
         return f0
 
     # -- clip vector
+    def valid_frames(self, n_valid: int, frame_length: int) -> int:
+        """Frames of `frame_length` samples (at the common hop) that lie wholly inside the recording."""
+        return 0 if n_valid < frame_length else 1 + (n_valid - frame_length) // self.hop
+
     def clip_vector(self, x: np.ndarray, level_db: float, n_valid: int | None = None) -> tuple[np.ndarray, np.ndarray]:
         """
         Returns (feature vector, log-mel).
 
         `x` is the standardized clip, `level_db` its RMS level before
-        normalization and `n_valid` its length before padding. The log-mel
-        covers the whole padded second, because that is what a model
-        receives; the summary statistics use only the frames that lie inside
-        the recording, so that zero padding does not masquerade as a very
-        quiet room or as a steady spectrum.
+        normalization and `n_valid` its length before padding (None: no
+        padding). The log-mel covers the whole padded second, because that
+        is what a model receives. Every summary statistic is computed only
+        from frames that lie wholly inside the recording, each with the
+        length of its own window: 25 ms for the spectral statistics, 40 ms
+        for pitch. Padding a recording therefore leaves the clip vector
+        unchanged (checked in tests/test_padding_invariance.py).
+
+        Edge cases
+          * A recording shorter than one spectral window (25 ms) keeps its
+            first frame, which then includes padding.
+          * A recording shorter than one pitch window (40 ms) has no
+            measurable pitch: f0_hz is NaN and voiced_frac is 0.
+          * A recording without a voiced frame has f0_hz NaN and
+            voiced_frac 0; the missing pitch is handled where it is used.
         """
+        n_valid = len(x) if n_valid is None else int(min(n_valid, len(x)))
         power = self.power_spectrogram(x)
         lm = self.log_mel(x, power)
-        nv = lm.shape[1] if n_valid is None else max(1, min(lm.shape[1], self.n_frames(n_valid)))
+        nv = max(1, min(lm.shape[1], self.valid_frames(n_valid, self.n_fft)))
 
         mf = self.dct @ lm[:, :nv]
         d = delta(mf, self.delta_width)
 
-        frames = sliding_window_view(x, self.n_fft)[:: self.hop]
+        frames = sliding_window_view(x, self.n_fft)[:: self.hop][:nv]
         energy_db = 10.0 * np.log10(np.mean(frames.astype(np.float64) ** 2, axis=1) + EPS)
         active = energy_db >= energy_db.max() - self.activity_db
 
-        p_act = power[active] + EPS
+        p_act = power[:nv][active] + EPS
         centroid = float(np.mean((p_act @ self.freqs) / p_act.sum(axis=1)))
         flatness = float(np.mean(np.exp(np.mean(np.log(p_act), axis=1)) / np.mean(p_act, axis=1)))
-        zcr = float(np.mean(np.abs(np.diff(np.signbit(x[: n_valid or len(x)]).astype(np.int8)))))
-        p10, p95 = np.percentile(energy_db[:nv], [10, 95])
+        zcr = float(np.mean(np.abs(np.diff(np.signbit(x[:n_valid]).astype(np.int8))))) if n_valid > 1 else 0.0
+        p10, p95 = np.percentile(energy_db, [10, 95])
 
-        f0 = self.f0_track(x, active)
-        n_voiced = int(np.sum(~np.isnan(f0)))
+        n_pitch = min(self.valid_frames(n_valid, self.f0_frame), nv)
+        if n_pitch:
+            f0 = self.f0_track(x[: (n_pitch - 1) * self.hop + self.f0_frame], active[:n_pitch])
+            n_voiced = int(np.sum(~np.isnan(f0)))
+        else:
+            f0, n_voiced = np.array([]), 0
         f0_med = float(np.nanmedian(f0)) if n_voiced else np.nan
 
         vec = np.concatenate(
@@ -263,7 +289,7 @@ class FeatureExtractor:
                     p95 - p10,
                     float(active.mean()),
                     f0_med,
-                    n_voiced / max(len(f0), 1),
+                    n_voiced / n_pitch if n_pitch else 0.0,
                     level_db,
                 ],
             ]

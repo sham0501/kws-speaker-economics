@@ -59,3 +59,8 @@ scratch/
 
 # helper script for creating the phase-1 commits — not part of the project
 make_phase1_commits.sh
+
+# smoke-test outputs of --limit runs
+reports/*/limited/
+data/processed/*/limited/
+figures/*/limited/

@@ -133,7 +133,14 @@ def build_silence(
         Reason: if two clips from the same noise file ended up in train
         and test, the model could memorize that specific noise pattern
         and test accuracy would be inflated (a form of leakage).
-      - Clips are non-overlapping with a random offset.
+      - Each clip starts at a random sample of its source file, drawn
+        without replacement. Distinct starts do not make the clips
+        independent: a source file of about a minute yields only about
+        sixty disjoint one-second windows, while a split may ask hundreds
+        of clips from it, so windows from the same file overlap heavily.
+        The source file and start sample of every clip are returned with
+        the rows (and written to silence_provenance.csv); the amount of
+        overlap is measured by src/data/silence_overlap.py.
     """
     bg = root / BG_DIR
     noise_files = sorted(bg.glob("*.wav"))
@@ -192,6 +199,9 @@ def build_silence(
                         "speaker_id": f"noise::{nf.stem}",
                         "utterance_index": j,
                         "split": split,
+                        "source_file": nf.name,
+                        "start_sample": int(st),
+                        "source_samples": int(len(sig)),
                     }
                 )
     return rows, provenance
@@ -280,6 +290,12 @@ def main() -> int:
     if len(sil):
         sil["label"] = sil_label
         sil["source"] = "silence_generated"
+        # Where each silence clip was cut from. Kept out of the manifest so the
+        # manifest format does not change.
+        ensure_dir(cfg["paths"]["reports_dir"])
+        sil[["filepath", "split", "source_file", "start_sample", "source_samples"]].to_csv(
+            resolve(cfg["paths"]["reports_dir"]) / "silence_provenance.csv", index=False
+        )
 
     # ---- combine ----
     cols = ["filepath", "label", "word", "speaker_id", "utterance_index", "split", "source"]
@@ -351,7 +367,8 @@ def main() -> int:
         "split_policy": (
             "Google's official validation_list.txt/testing_list.txt (hashed on "
             "speaker_id), which guarantees each speaker appears in only one set; "
-            "silence is split at the level of the source noise file."
+            "silence is split at the level of the source noise file; clips cut "
+            "from one file overlap (see silence_overlap.json)."
         ),
     }
     out_json = ensure_dir(cfg["paths"]["reports_dir"]) / "subset_summary.json"

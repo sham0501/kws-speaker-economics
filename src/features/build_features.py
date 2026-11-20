@@ -14,9 +14,16 @@ Outputs
     reports/phase2/features_summary.json      what was done to how many clips
     reports/phase2/feature_catalog.csv        the feature list with the reason for each group
 
+A run with --limit is a smoke test of the extractor. It draws a seeded
+sample covering every (split, class) cell and writes everything under
+data/processed/phase2/limited/ and reports/phase2/limited/, so it can never
+replace or be mistaken for the full build: later stages only read the full
+build, and refuse it unless it matches the current manifest, the current
+signal and feature settings, and the current extractor version.
+
 Usage
     python src/features/build_features.py
-    python src/features/build_features.py --limit 2000 --jobs 1   # smoke test
+    python src/features/build_features.py --limit 600 --jobs 1   # smoke test
 """
 
 from __future__ import annotations
@@ -34,7 +41,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from features.audio_features import FEATURE_CATALOG, FeatureExtractor  # noqa: E402
+from features.audio_features import EXTRACTOR_VERSION, FEATURE_CATALOG, FeatureExtractor  # noqa: E402
 from features.waveform import load_clip, rms, standardize  # noqa: E402
 from utils.common import clip_path, ensure_dir, load_config, resolve  # noqa: E402
 
@@ -56,8 +63,9 @@ def _process(chunk):
         sig, orig_len = load_clip(clip_path(fp), sr, n)
         level = rms(sig[:orig_len])
         level_db = 20.0 * np.log10(level + 1e-10)
-        x, gain_db = standardize(sig, _CFG)
-        vec, _ = _FX.clip_vector(x, level_db, min(orig_len, n))
+        n_valid = min(orig_len, n)
+        x, gain_db = standardize(sig, _CFG, n_valid)
+        vec, _ = _FX.clip_vector(x, level_db, n_valid)
         idx.append(i)
         waves.append(np.round(sig * 32768.0).clip(-32768, 32767).astype(np.int16))
         feats.append(vec)
@@ -70,21 +78,37 @@ def manifest_fingerprint(man: pd.DataFrame) -> str:
     return hashlib.sha1("\n".join(man["filepath"].astype(str)).encode("utf-8")).hexdigest()
 
 
+def settings_fingerprint(cfg: dict) -> str:
+    """Everything that changes the numbers in a feature build, as one hash."""
+    keyed = {"signal": cfg["signal"], "features": cfg["features"], "extractor_version": EXTRACTOR_VERSION}
+    return hashlib.sha1(json.dumps(keyed, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def limited_rows(man: pd.DataFrame, n: int, seed: int) -> np.ndarray:
+    """About n manifest rows, spread evenly over every (split, label) cell, drawn with `seed`."""
+    rng = np.random.default_rng(seed)
+    cells = man.groupby(["split", "label"]).indices
+    per = max(1, int(np.ceil(n / len(cells))))
+    rows = [rng.choice(idx, size=min(per, len(idx)), replace=False) for _, idx in sorted(cells.items())]
+    return np.sort(np.concatenate(rows))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default="configs/phase2.yaml")
-    ap.add_argument("--limit", type=int, default=None, help="process only the first N manifest rows")
+    ap.add_argument("--limit", type=int, default=None, help="smoke test on about N rows covering every split and class")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     args = ap.parse_args()
 
     cfg = load_config(args.config)
-    man = pd.read_csv(resolve(cfg["paths"]["manifest"]))
-    if args.limit:
-        man = man.iloc[: args.limit].reset_index(drop=True)
+    full = pd.read_csv(resolve(cfg["paths"]["manifest"]))
+    selected = limited_rows(full, args.limit, cfg["seed"]) if args.limit else None
+    man = full.iloc[selected].reset_index(drop=True) if args.limit else full
     n_clips, n_samples = len(man), cfg["signal"]["n_samples"]
 
-    out_dir = ensure_dir(cfg["paths"]["processed_dir"])
-    rep_dir = ensure_dir(cfg["paths"]["reports_dir"])
+    sub_dir = "limited" if args.limit else ""
+    out_dir = ensure_dir(resolve(cfg["paths"]["processed_dir"]) / sub_dir)
+    rep_dir = ensure_dir(resolve(cfg["paths"]["reports_dir"]) / sub_dir)
     fx = FeatureExtractor(cfg)
 
     missing = [fp for fp in man["filepath"] if not clip_path(fp).exists()]
@@ -123,8 +147,11 @@ def main() -> int:
     meta = {
         "feature_names": fx.names,
         "n_clips": n_clips,
-        "manifest_sha1": manifest_fingerprint(man),
+        "manifest_sha1": manifest_fingerprint(full),
+        "settings_sha1": settings_fingerprint(cfg),
+        "extractor_version": EXTRACTOR_VERSION,
         "limit": args.limit,
+        "manifest_rows": selected.tolist() if selected is not None else None,
     }
     (out_dir / "features_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 

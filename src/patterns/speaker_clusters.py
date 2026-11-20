@@ -54,7 +54,7 @@ from sklearn.metrics import adjusted_rand_score, davies_bouldin_score, silhouett
 from sklearn.preprocessing import RobustScaler, StandardScaler  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from features.speaker_profiles import build_profiles, profile_matrix, sample_rows, word_residuals  # noqa: E402
+from features.speaker_profiles import build_profiles, profile_base, profile_matrix, sample_rows  # noqa: E402
 from features.store import load_features  # noqa: E402
 from utils.common import ensure_dir, load_config, resolve  # noqa: E402
 
@@ -92,7 +92,9 @@ def evaluate_k(p: np.ndarray, k: int, cl: dict, seed: int, p_robust: np.ndarray)
     sd = p.std(axis=0)
     for _ in range(cl["null_draws"]):
         g = rng.normal(0.0, sd, size=p.shape)
-        null.append(silhouette_score(g, kmeans(g, k, int(rng.integers(1 << 31)), 3).labels_))
+        # same k-means settings as for the real profiles, so the comparison
+        # measures structure and not a difference in how hard k-means tried
+        null.append(silhouette_score(g, kmeans(g, k, int(rng.integers(1 << 31)), cl["n_init"]).labels_))
 
     seed_ari = [adjusted_rand_score(labels, kmeans(p, k, s, 1).labels_) for s in range(st["n_seeds"])]
 
@@ -133,14 +135,22 @@ def choose_k(table: pd.DataFrame, min_seed_ari: float) -> tuple[int, str]:
     return k, f"no k reached mean seed ARI >= {min_seed_ari}; largest silhouette excess overall"
 
 
+def split_halves(rows_by_speaker: dict, m: int, rng: np.random.Generator) -> tuple[dict, dict]:
+    """
+    For every speaker, 2m distinct clips in random order, split into a first
+    and a second half of m clips each. The halves never share a clip.
+    """
+    picked = sample_rows(rows_by_speaker, 2 * m, rng)
+    order = {s: rng.permutation(r) for s, r in picked.items()}
+    return {s: r[:m] for s, r in order.items()}, {s: r[m:] for s, r in order.items()}
+
+
 def split_half(base, rows_by_speaker, m, scaler, pca, model, fill, rng) -> dict:
     """Two profiles per speaker from disjoint sets of m clips; do they agree?"""
-    picked = sample_rows(rows_by_speaker, 2 * m, rng)
+    first, second = split_halves(rows_by_speaker, m, rng)
     halves = []
-    for sl in (slice(0, m), slice(m, 2 * m)):
-        # sample_rows returns sorted rows; shuffle so the halves are not ordered by row
-        prof = build_profiles(base, {s: rng.permutation(r)[sl] for s, r in picked.items()})
-        halves.append(prof.fillna(fill).to_numpy())
+    for part in (first, second):
+        halves.append(build_profiles(base, part).fillna(fill).to_numpy())
     za, zb = scaler.transform(halves[0]), scaler.transform(halves[1])
     ca, cb = model.predict(pca.transform(za)), model.predict(pca.transform(zb))
     share = np.bincount(np.concatenate([ca, cb]), minlength=model.n_clusters) / (2 * len(ca))
@@ -219,7 +229,7 @@ def main() -> int:
     man, feats, names = load_features(cfg)
     x, _ = profile_matrix(feats, names)
     human = ((man["split"] == sp["split"]) & (man["label"] != cfg["labels"]["silence"])).to_numpy()
-    base = word_residuals(x, man["word"], human) if sp["residualize_word"] else x
+    base = profile_base(x, man, cfg)  # same word reference as the profiles themselves
     need = 2 * max(cl["reliability_clips"])
     eligible = [s for s in prof.index if n_clips[s] >= need]
     spk = man["speaker_id"].to_numpy()
