@@ -37,7 +37,10 @@ def _checked_meta(cfg: dict, limited: bool) -> tuple[dict, pd.DataFrame]:
     proc = _build_dir(cfg, limited)
     meta_path = proc / "features_meta.json"
     if not meta_path.exists():
-        raise FileNotFoundError(f"{meta_path} not found; run src/features/build_features.py first")
+        raise FileNotFoundError(
+            f"{meta_path} not found: no feature build exists here, or the last one did not finish; "
+            "run src/features/build_features.py"
+        )
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     rebuild = "rebuild them with: python src/features/build_features.py"
     if bool(meta.get("limit")) != limited:

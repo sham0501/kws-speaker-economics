@@ -94,4 +94,9 @@ clustering:
     n_subsamples: 20
     subsample_frac: 0.8
     min_seed_ari: 0.80      # a k is eligible only if its seed-stability reaches this
-  reliability_clips: [1, 2, 4, 8]   # profile sizes compared in the split-half check
+  # Split-half reliability. The sizes below are compared on one fixed group of
+  # speakers who have at least 2 x max(size) clips. That group is not the
+  # candidate pool, so the size actually used for screening is also tested on
+  # every pool speaker (min_clips = 8 allows two disjoint 4-clip profiles).
+  reliability_clips: [1, 2, 4, 8]
+  reliability_full_pool_clips: 4

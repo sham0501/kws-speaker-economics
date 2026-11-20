@@ -22,6 +22,15 @@ Steps
   6. Describe the clusters in terms of the readable descriptors.
   7. Check how many clips a profile needs: build two profiles per speaker
      from disjoint clips and see whether they land in the same cluster.
+     Profile sizes are compared on one fixed group of speakers with enough
+     clips for the largest size; the size used for screening is also tested
+     on the whole candidate pool, which is the population selection draws
+     from. Agreement is reported next to the agreement expected by chance
+     and as Cohen's kappa, because one large cluster makes chance agreement
+     high. The halves may include a speaker's screening clips, from which
+     the clustered profiles were built; for a speaker with exactly 8 clips
+     they must. This can only make agreement look higher, so the figures
+     are an upper bound on how reliably a new candidate would be placed.
 
 Outputs
     reports/phase2/k_selection.csv
@@ -155,10 +164,13 @@ def split_half(base, rows_by_speaker, m, scaler, pca, model, fill, rng) -> dict:
     ca, cb = model.predict(pca.transform(za)), model.predict(pca.transform(zb))
     share = np.bincount(np.concatenate([ca, cb]), minlength=model.n_clusters) / (2 * len(ca))
     feature_r = [np.corrcoef(za[:, j], zb[:, j])[0, 1] for j in range(za.shape[1])]
+    observed, chance = float(np.mean(ca == cb)), float(np.sum(share**2))
     return {
         "profile_clips": m,
-        "same_cluster_rate": float(np.mean(ca == cb)),
-        "chance_rate": float(np.sum(share**2)),
+        "speakers": int(len(ca)),
+        "same_cluster_rate": observed,
+        "chance_rate": chance,
+        "kappa": (observed - chance) / (1.0 - chance) if chance < 1.0 else float("nan"),
         "ari": float(adjusted_rand_score(ca, cb)),
         "mean_feature_correlation": float(np.nanmean(feature_r)),
     }
@@ -237,11 +249,19 @@ def main() -> int:
     rng = np.random.default_rng(seed)
     fill = pd.Series(prof.median().to_numpy())
     reliability = [split_half(base, rows_by_speaker, m, scaler, pca, model, fill, rng) for m in cl["reliability_clips"]]
-    for r in reliability:
-        print(
-            f"  profile from {r['profile_clips']} clip(s): same cluster {r['same_cluster_rate']:.2f}"
-            f" (chance {r['chance_rate']:.2f}), feature r = {r['mean_feature_correlation']:.2f}"
-        )
+
+    m_pool = int(cl["reliability_full_pool_clips"])
+    pool_eligible = [s for s in prof.index if n_clips[s] >= 2 * m_pool]
+    pool_rows = {s: np.flatnonzero(human & (spk == s)) for s in pool_eligible}
+    full_pool = split_half(base, pool_rows, m_pool, scaler, pca, model, fill, rng)
+
+    for label, rows in (("fixed group", reliability), ("whole pool", [full_pool])):
+        for r in rows:
+            print(
+                f"  {label:11s} {r['speakers']:5d} speakers, {r['profile_clips']} clip(s): same cluster"
+                f" {r['same_cluster_rate']:.3f} (chance {r['chance_rate']:.3f}, kappa {r['kappa']:.2f}),"
+                f" feature r = {r['mean_feature_correlation']:.2f}"
+            )
 
     summary = {
         "speakers": int(len(prof)),
@@ -254,7 +274,20 @@ def main() -> int:
         "chosen_k_scores": {c: float(chosen[c]) for c in table.columns if c != "k"},
         "silhouette_exceeds_null_p95": bool(chosen["silhouette_kmeans"] > chosen["silhouette_null_p95"]),
         "clusters": clusters,
-        "profile_reliability": {"speakers": int(len(eligible)), "clips_required": need, "by_profile_size": reliability},
+        "profile_reliability": {
+            "fixed_group": {
+                "speakers": int(len(eligible)),
+                "clips_required": need,
+                "speakers_by_cluster": {int(c): int(v) for c, v in pd.Series(labels[np.isin(prof.index, eligible)]).value_counts().sort_index().items()},
+                "by_profile_size": reliability,
+            },
+            "whole_pool": {
+                "speakers": int(len(pool_eligible)),
+                "clips_required": 2 * m_pool,
+                "speakers_by_cluster": {int(c): int(v) for c, v in pd.Series(labels[np.isin(prof.index, pool_eligible)]).value_counts().sort_index().items()},
+                **full_pool,
+            },
+        },
     }
     (rep_dir / "clustering_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
@@ -320,17 +353,31 @@ def main() -> int:
     plt.close(fig)
 
     rel = pd.DataFrame(reliability)
-    fig, ax = plt.subplots(figsize=(5.5, 3.6))
+    fig, axes = plt.subplots(1, 2, figsize=(11, 3.8), gridspec_kw={"width_ratios": [2, 1]})
+    ax = axes[0]
     ax.plot(rel["profile_clips"], rel["same_cluster_rate"], marker="o", label="two profiles land in the same cluster")
-    ax.plot(rel["profile_clips"], rel["mean_feature_correlation"], marker="s", label="mean split-half correlation of features")
     ax.plot(rel["profile_clips"], rel["chance_rate"], color="grey", ls="--", label="same cluster by chance")
+    ax.plot(rel["profile_clips"], rel["kappa"], marker="^", label="agreement above chance (kappa)")
+    ax.plot(rel["profile_clips"], rel["mean_feature_correlation"], marker="s", label="mean split-half correlation of features")
     ax.set_xscale("log", base=2)
     ax.set_xticks(rel["profile_clips"])
     ax.set_xticklabels(rel["profile_clips"])
     ax.set_ylim(0, 1.02)
     ax.set_xlabel("clips per profile")
-    ax.set_title(f"How many clips a profile needs ({len(eligible)} speakers)")
-    ax.legend(frameon=False, fontsize=8)
+    ax.set_title(f"Profile size, on {len(eligible)} speakers with >= {need} clips")
+    ax.legend(frameon=False, fontsize=7.5)
+    ax = axes[1]
+    names = ["same cluster", "chance", "kappa", "feature r"]
+    vals_fixed = rel.set_index("profile_clips").loc[m_pool, ["same_cluster_rate", "chance_rate", "kappa", "mean_feature_correlation"]].to_numpy()
+    vals_pool = [full_pool["same_cluster_rate"], full_pool["chance_rate"], full_pool["kappa"], full_pool["mean_feature_correlation"]]
+    pos = np.arange(len(names))
+    ax.bar(pos - 0.2, vals_fixed, 0.4, label=f"fixed group ({len(eligible)})")
+    ax.bar(pos + 0.2, vals_pool, 0.4, label=f"whole pool ({len(pool_eligible)})")
+    ax.set_xticks(pos)
+    ax.set_xticklabels(names, fontsize=8)
+    ax.set_ylim(0, 1.02)
+    ax.set_title(f"{m_pool}-clip profiles: fixed group vs whole pool")
+    ax.legend(frameon=False, fontsize=7.5)
     fig.savefig(fig_dir / "fig09_profile_reliability.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     return 0

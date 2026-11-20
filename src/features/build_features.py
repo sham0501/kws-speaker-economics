@@ -117,6 +117,12 @@ def main() -> int:
         print("Run src/data/download_dataset.py and src/data/build_subset.py first.")
         return 1
 
+    # The metadata file is what makes a build readable. It is removed before
+    # the first array is overwritten and written again only after every array
+    # has been saved, so a build that is interrupted half-way is refused by
+    # the loaders instead of being read as if it were complete.
+    (out_dir / "features_meta.json").unlink(missing_ok=True)
+
     waves = np.lib.format.open_memmap(
         out_dir / "waveforms.npy", mode="w+", dtype=np.int16, shape=(n_clips, n_samples)
     )
@@ -153,7 +159,9 @@ def main() -> int:
         "limit": args.limit,
         "manifest_rows": selected.tolist() if selected is not None else None,
     }
-    (out_dir / "features_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    tmp = out_dir / "features_meta.json.tmp"
+    tmp.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    os.replace(tmp, out_dir / "features_meta.json")  # appears complete or not at all
 
     # ---- what the pipeline did, in numbers -------------------------------
     names = fx.names

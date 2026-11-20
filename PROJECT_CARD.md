@@ -178,7 +178,9 @@ conditions so comparisons remain fair.
 
 ---
 
-## 12. Proposed unsupervised / pattern-discovery component (phase 2)
+## 12. Unsupervised / pattern-discovery component (phase 2)
+
+### Plan as logged on 1405/08/13 (phase 1)
 
 **Clustering of speaker-level audio representations** is the core of this project: for
 each speaker in the train pool, a profile vector is built (a centroid or statistical
@@ -189,6 +191,45 @@ random sampling) achieves better coverage of voice diversity (pitch, accent, spe
 rate) under an equal budget. Cluster stability is checked across seed and subsample
 variation, since a clustering that reshuffles on a new seed cannot support a sampling
 strategy.
+
+### What phase 2 actually did (1405/08/29)
+
+Three parts of the plan changed once the data were measured.
+
+- **Profiles come from four screening clips, not from all of a speaker's clips.** The
+  question is about deciding whom to record, so a profile may only use what a team could
+  have before that decision. Each of the 1,560 training speakers with at least 8 clips
+  (of 2,027) is profiled from 4 randomly chosen clips, after subtracting the mean of each
+  clip's word; those word means come from the screening clips alone. Profiling every
+  candidate this way costs 6,240 clips, more than the largest budget planned for
+  phase 3, so the screening cost has to enter the phase-3 comparison
+  (`reports/phase2/screening_budget.json`).
+- **The data support two clusters, and only weakly.** k was chosen as the most stable
+  value (mean ARI over re-initializations at least 0.8) whose silhouette exceeds that of
+  structureless Gaussian data by the widest margin. That gave k = 2 with clusters of 486
+  and 1,074 speakers: silhouette 0.203 against 0.162 for the Gaussian reference
+  (95th percentile 0.171). The partition is reproducible under re-initialization and
+  subsampling (ARI 0.998 and 0.992) but depends on method and scaling (ARI 0.63 against
+  Ward linkage, 0.78 under robust scaling). This is a weak structure, not a set of voice
+  types.
+- **The clusters partly coincide with how much a speaker recorded.** 31.6% of the
+  speakers in the larger cluster contributed 40 or more clips, against 2.1% in the
+  smaller one. Selecting by cluster therefore also shifts the mix of prolific and
+  occasional contributors, which phase 3 has to keep separate from any effect of voice
+  diversity.
+
+How reliably four clips place a speaker in a cluster is measured on the whole pool of
+1,560 candidates, next to a comparison of 1, 2, 4 and 8 clips on a fixed group of
+speakers; results are in the phase-2 report.
+
+**Still open, to be decided and tested in phase 3.** "One speaker per cluster" cannot fill
+a budget with two clusters. To select, for example, 64 speakers, the share given to each
+cluster is an experimental choice: equal shares (32 and 32) over-represent the smaller
+cluster relative to the pool, proportional shares (about 20 and 44) reproduce random
+selection in expectation. Phase 3 fixes the allocation rule before running the budget
+experiment, compares it with random selection and with farthest-point selection in
+profile space, and reports results under both a training-budget view (screening free)
+and a recording-budget view (screening paid for).
 
 ---
 
