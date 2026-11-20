@@ -119,8 +119,8 @@
           "profile_clips": 1,
           "speakers": 443,
           "same_cluster_rate": 0.9480812641083521,
-          "chance_rate": 0.837571146859347,
-          "kappa": 0.6803601399149846,
+          "chance_rate": 0.837568599075664,
+          "kappa": 0.6803651535589923,
           "ari": 0.6380322709039731,
           "mean_feature_correlation": 0.5091940209677478
         },
@@ -128,8 +128,8 @@
           "profile_clips": 2,
           "speakers": 443,
           "same_cluster_rate": 0.9796839729119639,
-          "chance_rate": 0.8678999638214716,
-          "kappa": 0.8462072556847768,
+          "chance_rate": 0.8678974160377887,
+          "kappa": 0.8462102217936355,
           "ari": 0.8263420711771965,
           "mean_feature_correlation": 0.6271885735971306
         },
@@ -137,8 +137,8 @@
           "profile_clips": 4,
           "speakers": 443,
           "same_cluster_rate": 0.9774266365688488,
-          "chance_rate": 0.8698388272042151,
-          "kappa": 0.8265737550892577,
+          "chance_rate": 0.8697980626652874,
+          "kappa": 0.8266280525986224,
           "ari": 0.8051093691563727,
           "mean_feature_correlation": 0.76324914197615
         },
@@ -146,8 +146,8 @@
           "profile_clips": 8,
           "speakers": 443,
           "same_cluster_rate": 0.9796839729119639,
-          "chance_rate": 0.8601954659641577,
-          "kappa": 0.8546826308020335,
+          "chance_rate": 0.860070624563692,
+          "kappa": 0.8548122792323659,
           "ari": 0.8345603414125208,
           "mean_feature_correlation": 0.8612633875281713
         }
@@ -162,8 +162,8 @@
       },
       "profile_clips": 4,
       "same_cluster_rate": 0.9564102564102565,
-      "chance_rate": 0.5686398750821828,
-      "kappa": 0.898948138523355,
+      "chance_rate": 0.5686193293885602,
+      "kappa": 0.8989529513968268,
       "ari": 0.8299574607589332,
       "mean_feature_correlation": 0.8117948569675689
     }
