@@ -322,7 +322,9 @@ from **disjoint** sets of clips and checking whether both fall in the same clust
 fitted partition. Because one cluster is twice the size of the other, two random
 assignments would already agree often, so agreement is reported next to the agreement
 expected by chance and as Cohen's kappa, which is 0 at chance and 1 at perfect agreement
-(`reports/phase2/clustering_summary.json`, key `profile_reliability`).
+(`reports/phase2/clustering_summary.json`, key `profile_reliability`). Chance agreement is
+the sum over clusters of the share of speakers each half puts in that cluster, multiplied
+together: the probability that two independent assignments with these shares agree.
 
 ![Figure 9. Split-half reliability of profiles](../../figures/phase2/fig09_profile_reliability.png)
 

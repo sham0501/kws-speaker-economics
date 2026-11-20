@@ -532,10 +532,10 @@ spectrogram does better, we know the improvement genuinely came from modeling
 time-frequency structure.
 
 **Second (even simpler) baseline:** always predicting the most frequent class — to show
-the absolute floor. With 12 roughly balanced classes, this model's macro-F1 will be
-about **1.3%** (the most frequent test class, `up`, has 425/4,888 samples; its own F1
-is ≈16.0%, every other class scores 0, and the macro-average over 12 classes is
-≈16.0%/12).
+the absolute floor. The class is chosen on the training split, like every other model
+choice: `yes`, with 3,228 of 36,923 train clips. Scored on test, where `yes` has 419 of
+4,888 clips, its precision is 8.6% and its recall 100%, so its F1 is ≈15.8%; every other
+class scores 0, and the macro-F1 over 12 classes is ≈15.8%/12 ≈ **1.32%**.
 
 **Sampling-strategy baseline (specific to this project):** **random, uniform** speaker
 selection. The cluster-driven strategy must beat this, with uncertainty reported across
@@ -611,6 +611,7 @@ subsamples, scaling and method.
 | 7.4, 12 | The concentration figures counted the four train noise recordings as speakers. They are now computed over the 2,027 real speakers. |
 | 8.2, Figure 8 | The figure averaged the first rows of the manifest, so all silence clips came from one recording. It now uses a seeded sample with the silence clips spread evenly over the four train recordings. |
 | 8.3, Figure 9 | The figure used the 250 speakers with the most clips, and their first 8 clips, which covered few words. It now uses 250 random speakers among those with at least 8 clips and word-diverse clips. The explained variance and the reading of the figure changed accordingly. |
+| 10 | The majority-class baseline took its class from the test split (`up`). It now takes it from the training split (`yes`); its macro-F1 is 1.32%. |
 
 ---
 
