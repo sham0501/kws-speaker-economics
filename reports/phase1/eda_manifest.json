@@ -20,7 +20,12 @@
     "n_fft": 400,
     "hop_length": 160,
     "fmin": 20,
-    "fmax": 7600
+    "fmax": 7600,
+    "mean_logmel_clips_per_class": 60,
+    "speaker_pca": {
+      "max_speakers": 250,
+      "clips_per_speaker": 8
+    }
   },
   "example_files": [
     {
@@ -168,6 +173,77 @@
       "label": "silence"
     }
   ],
+  "drawn_samples": {
+    "fig08_mean_logmel": {
+      "yes": {
+        "clips": 60,
+        "speakers_or_sources": 59
+      },
+      "no": {
+        "clips": 60,
+        "speakers_or_sources": 58
+      },
+      "up": {
+        "clips": 60,
+        "speakers_or_sources": 60
+      },
+      "down": {
+        "clips": 60,
+        "speakers_or_sources": 60
+      },
+      "left": {
+        "clips": 60,
+        "speakers_or_sources": 58
+      },
+      "right": {
+        "clips": 60,
+        "speakers_or_sources": 60
+      },
+      "on": {
+        "clips": 60,
+        "speakers_or_sources": 58
+      },
+      "off": {
+        "clips": 60,
+        "speakers_or_sources": 60
+      },
+      "stop": {
+        "clips": 60,
+        "speakers_or_sources": 59
+      },
+      "go": {
+        "clips": 60,
+        "speakers_or_sources": 58
+      },
+      "unknown": {
+        "clips": 60,
+        "speakers_or_sources": 59
+      },
+      "silence": {
+        "clips": 60,
+        "speakers_or_sources": 4,
+        "clips_by_source": {
+          "noise::doing_the_dishes": 15,
+          "noise::dude_miaowing": 15,
+          "noise::exercise_bike": 15,
+          "noise::pink_noise": 15
+        }
+      }
+    },
+    "fig09_speaker_pca": {
+      "speakers_eligible": 1560,
+      "speakers_drawn": 250,
+      "clips_per_profile": 8,
+      "distinct_words_per_profile": {
+        "min": 3.0,
+        "median": 8.0,
+        "max": 8.0
+      },
+      "clips_recorded_by_drawn_speakers": {
+        "median": 12.0
+      }
+    }
+  },
   "figures": [
     "fig01_class_distribution.png",
     "fig02_samples_per_speaker.png",
@@ -177,6 +253,7 @@
     "fig06_waveforms.png",
     "fig07_logmel.png",
     "fig08_mean_logmel_per_class.png",
-    "fig09_speaker_mfcc_pca.png"
+    "fig09_speaker_mfcc_pca.png",
+    "fig10_silence_coverage.png"
   ]
 }

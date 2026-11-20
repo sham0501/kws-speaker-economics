@@ -1,0 +1,198 @@
+{
+  "candidates": 1560,
+  "screening_clips_per_candidate": 4,
+  "screening_clips_total": 6240,
+  "word_reference": "screening",
+  "words_in_reference": 35,
+  "reference_clips_per_word": {
+    "min": 10,
+    "median": 30.0
+  },
+  "reuse_in_training": true,
+  "accounting": {
+    "training_budget_view": "every strategy trains on the same number of clips; screening is free. Measures the value of choosing speakers, as if profiles came from an existing archive.",
+    "recording_budget_view": "every recorded clip counts. Random selection needs no screening; a profile-based strategy pays candidates x screening clips first, and a selected speaker's screening clips count toward their training clips. Strategies are compared at equal total recording cost."
+  },
+  "cost_table": [
+    {
+      "selected_speakers": 64,
+      "clips_per_speaker": 1,
+      "training_clips": 64,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 64,
+      "screening_clips_without_training_use": 6176,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 64,
+      "clips_per_speaker": 2,
+      "training_clips": 128,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 128,
+      "screening_clips_without_training_use": 6112,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 64,
+      "clips_per_speaker": 4,
+      "training_clips": 256,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 256,
+      "screening_clips_without_training_use": 5984,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 64,
+      "clips_per_speaker": 8,
+      "training_clips": 512,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 256,
+      "screening_clips_without_training_use": 5984,
+      "total_clips_recorded": 6496
+    },
+    {
+      "selected_speakers": 128,
+      "clips_per_speaker": 1,
+      "training_clips": 128,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 128,
+      "screening_clips_without_training_use": 6112,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 128,
+      "clips_per_speaker": 2,
+      "training_clips": 256,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 256,
+      "screening_clips_without_training_use": 5984,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 128,
+      "clips_per_speaker": 4,
+      "training_clips": 512,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 512,
+      "screening_clips_without_training_use": 5728,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 128,
+      "clips_per_speaker": 8,
+      "training_clips": 1024,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 512,
+      "screening_clips_without_training_use": 5728,
+      "total_clips_recorded": 6752
+    },
+    {
+      "selected_speakers": 256,
+      "clips_per_speaker": 1,
+      "training_clips": 256,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 256,
+      "screening_clips_without_training_use": 5984,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 256,
+      "clips_per_speaker": 2,
+      "training_clips": 512,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 512,
+      "screening_clips_without_training_use": 5728,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 256,
+      "clips_per_speaker": 4,
+      "training_clips": 1024,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 1024,
+      "screening_clips_without_training_use": 5216,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 256,
+      "clips_per_speaker": 8,
+      "training_clips": 2048,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 1024,
+      "screening_clips_without_training_use": 5216,
+      "total_clips_recorded": 7264
+    },
+    {
+      "selected_speakers": 512,
+      "clips_per_speaker": 1,
+      "training_clips": 512,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 512,
+      "screening_clips_without_training_use": 5728,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 512,
+      "clips_per_speaker": 2,
+      "training_clips": 1024,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 1024,
+      "screening_clips_without_training_use": 5216,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 512,
+      "clips_per_speaker": 4,
+      "training_clips": 2048,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 2048,
+      "screening_clips_without_training_use": 4192,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 512,
+      "clips_per_speaker": 8,
+      "training_clips": 4096,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 2048,
+      "screening_clips_without_training_use": 4192,
+      "total_clips_recorded": 8288
+    },
+    {
+      "selected_speakers": 1024,
+      "clips_per_speaker": 1,
+      "training_clips": 1024,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 1024,
+      "screening_clips_without_training_use": 5216,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 1024,
+      "clips_per_speaker": 2,
+      "training_clips": 2048,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 2048,
+      "screening_clips_without_training_use": 4192,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 1024,
+      "clips_per_speaker": 4,
+      "training_clips": 4096,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 4096,
+      "screening_clips_without_training_use": 2144,
+      "total_clips_recorded": 6240
+    },
+    {
+      "selected_speakers": 1024,
+      "clips_per_speaker": 8,
+      "training_clips": 8192,
+      "screening_clips": 6240,
+      "screening_clips_reused_for_training": 4096,
+      "screening_clips_without_training_use": 2144,
+      "total_clips_recorded": 10336
+    }
+  ]
+}

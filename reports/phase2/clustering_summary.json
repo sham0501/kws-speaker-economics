@@ -1,0 +1,143 @@
+{
+  "speakers": 1560,
+  "profile_features": 48,
+  "pca_components": 22,
+  "pca_explained_variance_ratio": [
+    0.27192788094758313,
+    0.1278966189746108,
+    0.08131368084285902,
+    0.053710781964396104,
+    0.04597139049989207,
+    0.03139411228221522,
+    0.02860993807660317,
+    0.026697241623138177,
+    0.02316637032113077,
+    0.02241140731812837,
+    0.021617124896766895,
+    0.020418440329701876,
+    0.01952931212234663,
+    0.01864453663872143,
+    0.01822043097652869,
+    0.01729580560523623,
+    0.016170994407699927,
+    0.014804439590061075,
+    0.013703474755676258,
+    0.009783094147045519,
+    0.00888209865765818,
+    0.008822145448658291
+  ],
+  "k_range": [
+    2,
+    10
+  ],
+  "chosen_k": 2,
+  "selection_rule": "largest silhouette excess over the Gaussian reference among k with mean seed ARI >= 0.8",
+  "chosen_k_scores": {
+    "silhouette_kmeans": 0.20304124887109296,
+    "silhouette_ward": 0.17078177260895447,
+    "silhouette_null_mean": 0.1623286734740918,
+    "silhouette_null_p95": 0.170746128019521,
+    "silhouette_excess": 0.040712575397001155,
+    "davies_bouldin": 1.7938230512606288,
+    "ari_seeds_mean": 0.9984305322793882,
+    "ari_seeds_min": 0.9947688780490113,
+    "ari_subsamples_mean": 0.9920348543112171,
+    "ari_subsamples_min": 0.9817368789640942,
+    "ari_robust_scaling": 0.7796422740683501,
+    "ari_kmeans_vs_ward": 0.6296752537754091,
+    "smallest_cluster": 486.0
+  },
+  "silhouette_exceeds_null_p95": true,
+  "clusters": [
+    {
+      "cluster": 0,
+      "speakers": 486,
+      "share": 0.31153846153846154,
+      "median_clips_per_speaker": 11.0,
+      "share_with_40_or_more_clips": 0.0205761316872428,
+      "most_distinctive_features": {
+        "dyn_range_db": -1.086,
+        "noise_floor_db": 1.082,
+        "mfcc_std_0": -0.921,
+        "mfcc_mean_0": 0.916,
+        "mfcc_std_1": -0.891
+      },
+      "descriptor_z": {
+        "f0_log2": 0.164,
+        "voiced_frac": 0.576,
+        "centroid_hz": -0.51,
+        "flatness": 0.232,
+        "zcr": -0.803,
+        "active_frac": 0.841,
+        "noise_floor_db": 1.082,
+        "dyn_range_db": -1.086,
+        "level_db": -0.201,
+        "mfcc_mean_0": 0.916,
+        "mfcc_mean_1": 0.818,
+        "mfcc_mean_2": 0.549
+      }
+    },
+    {
+      "cluster": 1,
+      "speakers": 1074,
+      "share": 0.6884615384615385,
+      "median_clips_per_speaker": 13.0,
+      "share_with_40_or_more_clips": 0.31564245810055863,
+      "most_distinctive_features": {
+        "dyn_range_db": 0.491,
+        "noise_floor_db": -0.49,
+        "mfcc_std_0": 0.417,
+        "mfcc_mean_0": -0.415,
+        "mfcc_std_1": 0.403
+      },
+      "descriptor_z": {
+        "f0_log2": -0.074,
+        "voiced_frac": -0.261,
+        "centroid_hz": 0.231,
+        "flatness": -0.105,
+        "zcr": 0.363,
+        "active_frac": -0.381,
+        "noise_floor_db": -0.49,
+        "dyn_range_db": 0.491,
+        "level_db": 0.091,
+        "mfcc_mean_0": -0.415,
+        "mfcc_mean_1": -0.37,
+        "mfcc_mean_2": -0.248
+      }
+    }
+  ],
+  "profile_reliability": {
+    "speakers": 443,
+    "clips_required": 16,
+    "by_profile_size": [
+      {
+        "profile_clips": 1,
+        "same_cluster_rate": 0.9480812641083521,
+        "chance_rate": 0.837571146859347,
+        "ari": 0.6380322709039731,
+        "mean_feature_correlation": 0.5091940209677478
+      },
+      {
+        "profile_clips": 2,
+        "same_cluster_rate": 0.9796839729119639,
+        "chance_rate": 0.8678999638214716,
+        "ari": 0.8263420711771965,
+        "mean_feature_correlation": 0.6271885735971306
+      },
+      {
+        "profile_clips": 4,
+        "same_cluster_rate": 0.9774266365688488,
+        "chance_rate": 0.8698388272042151,
+        "ari": 0.8051093691563727,
+        "mean_feature_correlation": 0.76324914197615
+      },
+      {
+        "profile_clips": 8,
+        "same_cluster_rate": 0.9796839729119639,
+        "chance_rate": 0.8601954659641577,
+        "ari": 0.8345603414125208,
+        "mean_feature_correlation": 0.8612633875281713
+      }
+    ]
+  }
+}

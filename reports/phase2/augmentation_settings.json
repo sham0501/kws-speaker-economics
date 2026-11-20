@@ -1,0 +1,24 @@
+{
+  "applied_to": "train split only",
+  "domain": "raw waveform, before level normalization",
+  "time_shift_samples": [
+    -1600,
+    1600
+  ],
+  "gain_db": [
+    -6.0,
+    6.0
+  ],
+  "noise_probability": 0.5,
+  "noise_snr_db": [
+    5.0,
+    20.0
+  ],
+  "noise_files": [
+    "pink_noise.wav",
+    "doing_the_dishes.wav",
+    "exercise_bike.wav",
+    "dude_miaowing.wav"
+  ],
+  "gain_invariance_max_abs_logmel_diff": 5.7220458984375e-06
+}

@@ -1,0 +1,104 @@
+{
+  "clip_seconds": 1.0,
+  "clips_not_located": 0,
+  "by_split": {
+    "test": {
+      "clips": 407,
+      "source_recordings": 1
+    },
+    "train": {
+      "clips": 3077,
+      "source_recordings": 4
+    },
+    "val": {
+      "clips": 370,
+      "source_recordings": 1
+    }
+  },
+  "by_source_recording": {
+    "doing_the_dishes.wav": {
+      "split": [
+        "train"
+      ],
+      "duration_s": 95.18,
+      "clips": 769,
+      "clips_located": 769,
+      "distinct_seconds": 95.01,
+      "share_of_recording_used": 0.9982,
+      "clip_seconds_per_distinct_second": 8.09,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 17,
+      "disjoint_one_second_windows_in_recording": 95
+    },
+    "dude_miaowing.wav": {
+      "split": [
+        "train"
+      ],
+      "duration_s": 61.81,
+      "clips": 769,
+      "clips_located": 769,
+      "distinct_seconds": 61.63,
+      "share_of_recording_used": 0.9972,
+      "clip_seconds_per_distinct_second": 12.48,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 23,
+      "disjoint_one_second_windows_in_recording": 61
+    },
+    "exercise_bike.wav": {
+      "split": [
+        "train"
+      ],
+      "duration_s": 61.25,
+      "clips": 769,
+      "clips_located": 769,
+      "distinct_seconds": 61.22,
+      "share_of_recording_used": 0.9994,
+      "clip_seconds_per_distinct_second": 12.56,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 25,
+      "disjoint_one_second_windows_in_recording": 61
+    },
+    "pink_noise.wav": {
+      "split": [
+        "train"
+      ],
+      "duration_s": 60.0,
+      "clips": 770,
+      "clips_located": 770,
+      "distinct_seconds": 59.88,
+      "share_of_recording_used": 0.998,
+      "clip_seconds_per_distinct_second": 12.86,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 26,
+      "disjoint_one_second_windows_in_recording": 60
+    },
+    "running_tap.wav": {
+      "split": [
+        "val"
+      ],
+      "duration_s": 61.16,
+      "clips": 370,
+      "clips_located": 370,
+      "distinct_seconds": 60.25,
+      "share_of_recording_used": 0.9852,
+      "clip_seconds_per_distinct_second": 6.14,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 14,
+      "disjoint_one_second_windows_in_recording": 61
+    },
+    "white_noise.wav": {
+      "split": [
+        "test"
+      ],
+      "duration_s": 60.0,
+      "clips": 407,
+      "clips_located": 407,
+      "distinct_seconds": 59.62,
+      "share_of_recording_used": 0.9937,
+      "clip_seconds_per_distinct_second": 6.83,
+      "clips_overlapping_another": 1.0,
+      "max_clips_on_one_sample": 15,
+      "disjoint_one_second_windows_in_recording": 60
+    }
+  }
+}
