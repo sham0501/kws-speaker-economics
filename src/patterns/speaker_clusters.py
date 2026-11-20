@@ -59,7 +59,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.cluster import AgglomerativeClustering, KMeans  # noqa: E402
 from sklearn.decomposition import PCA  # noqa: E402
-from sklearn.metrics import adjusted_rand_score, davies_bouldin_score, silhouette_score  # noqa: E402
+from sklearn.metrics import adjusted_rand_score, cohen_kappa_score, davies_bouldin_score, silhouette_score  # noqa: E402
 from sklearn.preprocessing import RobustScaler, StandardScaler  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -154,6 +154,20 @@ def split_halves(rows_by_speaker: dict, m: int, rng: np.random.Generator) -> tup
     return {s: r[:m] for s, r in order.items()}, {s: r[m:] for s, r in order.items()}
 
 
+def agreement(ca: np.ndarray, cb: np.ndarray, n_clusters: int) -> tuple[float, float, float]:
+    """
+    Observed agreement, chance agreement and Cohen's kappa of two cluster
+    assignments of the same speakers. Chance agreement uses the cluster
+    shares of each assignment separately: sum over clusters of
+    share_in_a * share_in_b.
+    """
+    pa = np.bincount(ca, minlength=n_clusters) / len(ca)
+    pb = np.bincount(cb, minlength=n_clusters) / len(cb)
+    observed, chance = float(np.mean(ca == cb)), float(np.sum(pa * pb))
+    kappa = float(cohen_kappa_score(ca, cb)) if chance < 1.0 else float("nan")
+    return observed, chance, kappa
+
+
 def split_half(base, rows_by_speaker, m, scaler, pca, model, fill, rng) -> dict:
     """Two profiles per speaker from disjoint sets of m clips; do they agree?"""
     first, second = split_halves(rows_by_speaker, m, rng)
@@ -162,15 +176,14 @@ def split_half(base, rows_by_speaker, m, scaler, pca, model, fill, rng) -> dict:
         halves.append(build_profiles(base, part).fillna(fill).to_numpy())
     za, zb = scaler.transform(halves[0]), scaler.transform(halves[1])
     ca, cb = model.predict(pca.transform(za)), model.predict(pca.transform(zb))
-    share = np.bincount(np.concatenate([ca, cb]), minlength=model.n_clusters) / (2 * len(ca))
     feature_r = [np.corrcoef(za[:, j], zb[:, j])[0, 1] for j in range(za.shape[1])]
-    observed, chance = float(np.mean(ca == cb)), float(np.sum(share**2))
+    observed, chance, kappa = agreement(ca, cb, model.n_clusters)
     return {
         "profile_clips": m,
         "speakers": int(len(ca)),
         "same_cluster_rate": observed,
         "chance_rate": chance,
-        "kappa": (observed - chance) / (1.0 - chance) if chance < 1.0 else float("nan"),
+        "kappa": kappa,
         "ari": float(adjusted_rand_score(ca, cb)),
         "mean_feature_correlation": float(np.nanmean(feature_r)),
     }
